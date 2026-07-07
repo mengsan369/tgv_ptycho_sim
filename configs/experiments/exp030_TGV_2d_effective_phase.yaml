@@ -1,0 +1,4 @@
+run:
+  name: exp030_TGV_2d_effective_phase
+status: scaffold
+todo: TGV-like 2D effective phase model for early sensitivity tests.

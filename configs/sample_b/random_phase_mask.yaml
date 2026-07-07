@@ -1,0 +1,4 @@
+sample_b:
+  type: random_phase
+  phase_range_rad: 3.141592653589793
+  seed: 1234

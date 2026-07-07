@@ -1,0 +1,13 @@
+project:
+  name: tgv_ptycho_sim
+  package: tgv_ptycho
+
+paths:
+  data_root: data
+  runs_root: runs
+
+defaults:
+  wavelength_m: 5.32e-7
+  dx_m: 2.0e-6
+  detector_pixel_size_m: 2.0e-6
+  random_seed: 1234

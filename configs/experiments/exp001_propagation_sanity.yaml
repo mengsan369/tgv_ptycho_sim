@@ -1,0 +1,26 @@
+run:
+  name: exp001_propagation_sanity
+  output_root: runs
+  seed: 1234
+
+optics:
+  shape: [256, 256]
+  dx_m: 2.0e-6
+  wavelength_m: 5.32e-7
+  propagation_distance_m: 0.02
+  medium_index: 1.0
+
+incident_field:
+  type: plane_wave
+  amplitude: 1.0
+  theta_x_rad: 0.0
+  theta_y_rad: 0.0
+
+sample:
+  type: thin_phase_disk
+  diameter_m: 90.0e-6
+  phase_shift_rad: 1.2
+
+output:
+  save_hdf5: true
+  save_png: true

@@ -1,0 +1,5 @@
+sample_b:
+  type: random_amp_phase
+  amplitude_range: [0.5, 1.0]
+  phase_range_rad: 3.141592653589793
+  seed: 1234

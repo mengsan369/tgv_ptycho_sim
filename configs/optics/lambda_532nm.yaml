@@ -1,0 +1,3 @@
+optics:
+  wavelength_m: 5.32e-7
+  description: Green 532 nm illumination.

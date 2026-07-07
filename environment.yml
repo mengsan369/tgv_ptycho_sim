@@ -1,0 +1,24 @@
+name: tgv_ptycho_sim
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - scipy
+  - matplotlib
+  - pyyaml
+  - tqdm
+  - pandas
+  - h5py
+  - zarr
+  - tifffile
+  - imageio
+  - scikit-image
+  - pytest
+  - jupyter
+  - ipykernel
+  - black
+  - ruff
+  - pip
+  - pip:
+      - -e .

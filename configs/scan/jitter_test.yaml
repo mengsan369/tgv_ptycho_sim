@@ -1,0 +1,7 @@
+scan:
+  type: grid_with_jitter
+  num_x: 9
+  num_y: 9
+  step_m: 1.5e-5
+  jitter_sigma_m: 2.0e-7
+  seed: 1234

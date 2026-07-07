@@ -1,0 +1,4 @@
+run:
+  name: exp020_A_thin_phase_probe_recovery
+status: scaffold
+todo: Thin phase sample A creates unknown probe, B scan recovers probe.

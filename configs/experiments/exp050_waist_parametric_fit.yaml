@@ -1,0 +1,4 @@
+run:
+  name: exp050_waist_parametric_fit
+status: scaffold
+todo: Fit waist diameter from recovered or simulated probe signatures.

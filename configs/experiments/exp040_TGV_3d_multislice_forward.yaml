@@ -1,0 +1,4 @@
+run:
+  name: exp040_TGV_3d_multislice_forward
+status: scaffold
+todo: Multi-slice forward simulation for axisymmetric TGV volume.

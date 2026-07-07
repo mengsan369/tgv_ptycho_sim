@@ -1,0 +1,7 @@
+scan:
+  type: grid
+  num_x: 9
+  num_y: 9
+  step_m: 1.5e-5
+  nominal_overlap: 0.70
+  center: true

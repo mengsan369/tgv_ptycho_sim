@@ -1,0 +1,4 @@
+run:
+  name: exp010_epie_known_probe
+status: scaffold
+todo: Standard ePIE demo with known probe and random B object.
