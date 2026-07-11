@@ -1,4 +1,53 @@
 run:
   name: exp010_epie_known_probe
-status: scaffold
-todo: Standard ePIE demo with known probe and random B object.
+  output_root: runs
+  seed: 20250712
+
+optics:
+  shape: [96, 96]
+  dx_m: 2.0e-6
+  wavelength_m: 5.32e-7
+  z_BC_m: 1.0e-2
+  detector_pixel_size_m: 2.0e-6
+  medium_index: 1.0
+
+probe:
+  type: gaussian
+  waist_m: 3.2e-5
+  amplitude: 1.0
+
+sample_b:
+  type: random_amp_phase
+  amp_range: [0.70, 1.00]
+  phase_range_rad: 1.2
+  feature_size_px: 4
+  seed: 20250713
+
+scan:
+  type: grid
+  num_x: 9
+  num_y: 9
+  step_m: 1.2e-5
+  center: true
+  nominal_overlap: 0.8125
+
+noise: null
+
+reconstruction:
+  algorithm: epie
+  known_probe: true
+  update_probe: false
+  num_iters: 80
+  beta_probe: 0.0
+  beta_object: 0.8
+  shuffle_positions: true
+  seed: 20250714
+  object_amplitude_bounds: [0.0, 1.2]
+  show_progress: true
+
+metrics:
+  illumination_threshold_fraction: 0.05
+
+output:
+  save_hdf5: true
+  save_png: true

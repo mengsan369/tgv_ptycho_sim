@@ -1,0 +1,52 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "run_forward exp001",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/run_forward.py",
+      "args": [
+        "--config",
+        "${workspaceFolder}/configs/experiments/exp001_propagation_sanity.yaml"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "MPLBACKEND": "Agg"
+      }
+    },
+    {
+      "name": "run_recon exp010 known probe ePIE",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/run_recon.py",
+      "args": [
+        "--config",
+        "${workspaceFolder}/configs/experiments/exp010_epie_known_probe.yaml"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "MPLBACKEND": "Agg"
+      }
+    },
+    {
+      "name": "debug current Python file",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "MPLBACKEND": "Agg"
+      }
+    }
+  ]
+}

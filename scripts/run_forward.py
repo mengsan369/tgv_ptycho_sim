@@ -6,6 +6,9 @@ import argparse
 import sys
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -101,8 +104,14 @@ def run(config_path: Path) -> Path:
         U_z,
         save_path=figures_dir / "propagated_field_amp_phase.png",
         title="exp001 propagated field",
+        dx=dx_m,
     )
-    save_intensity_image(intensity, figures_dir / "intensity.png")
+    save_intensity_image(
+        intensity,
+        figures_dir / "intensity.png",
+        dx=dx_m,
+        title="Detector intensity",
+    )
     plt.close("all")
 
     metadata = {
@@ -151,8 +160,12 @@ def run(config_path: Path) -> Path:
                 "tgv_parameters": {},
             },
             truth={
+                "incident_probe_true": U0,
                 "A_true": sample_transmission,
+                "U_after_sample_true": U_after_sample,
                 "P_B_true": U_after_sample,
+                "U_detector_true": U_z,
+                "I_detector_true": intensity,
             },
             config_yaml=config_yaml,
             metadata=metadata,

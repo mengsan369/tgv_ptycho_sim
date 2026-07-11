@@ -22,8 +22,8 @@ def get_git_commit(repo_root: str | Path = ".") -> str | None:
             cwd=Path(repo_root),
             check=True,
             capture_output=True,
-            text=True,
+            text=False,
         )
     except (OSError, subprocess.CalledProcessError):
         return None
-    return result.stdout.strip()
+    return result.stdout.decode("ascii", errors="ignore").strip()

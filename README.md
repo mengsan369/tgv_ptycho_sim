@@ -85,6 +85,28 @@ figures/（存一些可视化结果）
 outputs/（机器可以读取的数据，主要是.h5格式）
 ```
 
+## 第二个实验：已知 probe 的 ePIE
+
+运行 Phase 1 的最小 ptychography reconstruction：
+
+```bash
+python scripts/run_recon.py --config configs/experiments/exp010_epie_known_probe.yaml
+```
+
+这个实验直接定义 B 平面的 known Gaussian probe，用随机 amplitude-phase 样品 B 做 `9 x 9` overlapping grid scan，生成 `I_stack`，再调用 `epie_reconstruct()` 只恢复 B。probe 在整个 reconstruction 中固定，不参与更新。
+
+输出写入 `runs/exp010_epie_known_probe_时间戳/`，包括：
+
+- `metrics.json`：initial/final loss、B complex relative error、amplitude RMSE、wrapped phase RMSE、照明覆盖率等；
+- `figures/known_probe_amp_phase.png`：known probe 的 amplitude 和 phase；
+- `figures/detector_frames.png`：代表性的 detector intensity frame，使用 log scale；
+- `figures/scan_positions.png`：B 的扫描坐标和 acquisition order；
+- `figures/loss_curve.png`：每轮 ePIE 的 relative amplitude loss；
+- `figures/B_truth_reconstruction_error.png`：B truth、reconstruction 与 illuminated region error；
+- `outputs/epie_known_probe.h5`：测量数据、真值、重建结果、配置、元数据和指标。
+
+算法公式、选择依据、global-phase 对齐和当前限制见 `docs/theory_notes/epie_known_probe.md`。
+
 ## 真实实验数据预留接口
 
 项目已经预留真实实验数据处理模块：
@@ -151,7 +173,7 @@ docs/theory_notes/data_format.md
 
 ## 当前 TODO
 
-- ePIE / rPIE 目前是最小 scaffold，不是生产级 reconstruction engine。
+- known-probe ePIE 已有可运行的 Phase 1 baseline，但仍不是生产级 reconstruction engine；blind probe update 还需在 Phase 2 验证。
 - Multi-slice propagation 已有初版函数，但仍需要和已知 reference 做物理验证。
 - TGV 2D model 只是 effective thin phase phantom，不代表真实 waist geometry。
 - 真实实验数据的 preprocessing / calibration 目前只预留接口。
@@ -170,9 +192,7 @@ docs/theory_notes/data_format.md
 - `docs`:存一些文档，当用的知识和笔记
   docs/
 ├── theory_notes/       # 理论笔记：PIE、角谱法、OCT、HDF5
-├── experiment_design/  # 实验设计：光路、物料清单、采集流程
-├── material_list/      # 物料清单
-└── literature/         # 文献阅读记录
+└── experiment_design/  # 实验设计
 - `notebooks`:存的是ipynb文件，方便直接调试和可视化
 - `reports`：记录整理可以汇报的文档和图片
 - `runs`：每次仿真或重建的输出区，每跑一次实验，就保存一次完整结果，避免结果互相覆盖
@@ -200,7 +220,7 @@ outputs/*.h5
 - `/entry/data/scan_positions`：扫描位置；
 - `/entry/instrument/...`：波长、采样间隔、传播距离、探测器像素尺寸等；
 - `/entry/sample/...`：样品类型和样品参数；
-- `/entry/truth/...`：仿真真值，例如 `A_true`、`P_B_true`；
+- `/entry/truth/...`：仿真真值，例如 `incident_probe_true`、`A_true`、`U_after_sample_true`、`U_detector_true`；
 - `/entry/config_yaml`：本次运行使用的完整 YAML 配置，对应外部的 `config.yaml`；
 - `/entry/metadata/...`：运行元数据，对应外部的 `metadata.json`；
 - `/entry/metrics/...`：运行指标，对应外部的 `metrics.json`。

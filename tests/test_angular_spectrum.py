@@ -17,5 +17,7 @@ def test_angular_spectrum_roundtrip_low_frequency_field() -> None:
     U = make_gaussian_field((64, 64), dx=1e-6, waist=12e-6)
     Uz = angular_spectrum_propagate(U, dx=1e-6, wavelength=532e-9, z=2e-4)
     U_back = angular_spectrum_propagate(Uz, dx=1e-6, wavelength=532e-9, z=-2e-4)
-    rel_err = np.linalg.norm(U_back - U) / np.linalg.norm(U)
+    rel_err = np.sqrt(np.sum(np.abs(U_back - U) ** 2)) / np.sqrt(
+        np.sum(np.abs(U) ** 2)
+    )
     assert rel_err < 1e-10
