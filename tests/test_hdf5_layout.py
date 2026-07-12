@@ -66,3 +66,37 @@ def test_simulation_hdf5_keeps_truth_and_can_omit_calibration() -> None:
         assert "/entry/metrics/relative_error" in h5
         assert "/entry/calibration" not in h5
         assert "/entry/preprocessing" not in h5
+
+
+def test_exp020_hdf5_can_store_raw_and_evaluation_only_results() -> None:
+    output_path = _test_output_path("exp020")
+    field = np.ones((8, 8), dtype=np.complex128)
+    save_ptycho_hdf5(
+        output_path,
+        I_stack=np.ones((2, 8, 8), dtype=np.float64),
+        scan_positions=np.zeros((2, 2), dtype=np.float64),
+        instrument={"wavelength": 532e-9, "dx": 2e-6, "z_AB": 1e-3},
+        sample={"sample_A_type": "smooth_random_thin_phase"},
+        truth={"A_true": field, "P_B_true": field, "B_true": field},
+        reconstruction={
+            "P_B_rec": field,
+            "B_rec": field,
+            "A_rec_raw": field,
+            "A_rec_phase_only": field,
+            "simulation_evaluation_only": {
+                "A_rec_aligned_to_truth": field,
+            },
+        },
+        config_yaml="run:\n  name: exp020\n",
+        metadata={"dataset_type": "simulation"},
+        metrics={"final_data_fidelity_loss": 0.0},
+    )
+
+    with h5py.File(output_path, "r") as h5:
+        assert "/entry/truth/A_true" in h5
+        assert "/entry/reconstruction/A_rec_raw" in h5
+        assert "/entry/reconstruction/A_rec_phase_only" in h5
+        assert (
+            "/entry/reconstruction/simulation_evaluation_only/"
+            "A_rec_aligned_to_truth" in h5
+        )

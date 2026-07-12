@@ -52,6 +52,7 @@ def save_reconstruction_comparison(
     *,
     dx: float | tuple[float, float] | None = None,
     mask: NDArray[np.bool_] | None = None,
+    field_label: str = "B",
 ) -> None:
     """Save amplitude and phase truth/reconstruction/error panels."""
 
@@ -75,9 +76,14 @@ def save_reconstruction_comparison(
             raise ValueError(msg)
         amplitude_error_display = np.where(selected, amplitude_error, np.nan)
         phase_error_display = np.where(selected, phase_error, np.nan)
-        error_region = "illuminated region"
+        error_region = "illuminated"
     amplitude_min = float(min(np.min(np.abs(truth)), np.min(np.abs(rec))))
     amplitude_max = float(max(np.max(np.abs(truth)), np.max(np.abs(rec))))
+    amplitude_scale = max(abs(amplitude_min), abs(amplitude_max), 1.0)
+    if amplitude_max - amplitude_min < 1e-9 * amplitude_scale:
+        padding = 0.05 * amplitude_scale
+        amplitude_min -= padding
+        amplitude_max += padding
     amplitude_error_limit = max(float(np.max(np.abs(amplitude_error[selected]))), 1e-12)
     phase_error_limit = max(float(np.max(np.abs(phase_error[selected]))), 1e-12)
 
@@ -85,7 +91,7 @@ def save_reconstruction_comparison(
         _annotated_scalar_image(
             np.abs(truth),
             cmap="magma",
-            title="B truth: amplitude",
+            title=f"{field_label} truth: amplitude",
             colorbar_label="Amplitude [a.u.]",
             dx=dx,
             vmin=amplitude_min,
@@ -94,7 +100,7 @@ def save_reconstruction_comparison(
         _annotated_scalar_image(
             np.abs(rec),
             cmap="magma",
-            title="B reconstruction: amplitude",
+            title=f"{field_label} reconstruction: amplitude",
             colorbar_label="Amplitude [a.u.]",
             dx=dx,
             vmin=amplitude_min,
@@ -103,7 +109,7 @@ def save_reconstruction_comparison(
         _annotated_scalar_image(
             amplitude_error_display,
             cmap="coolwarm",
-            title=f"Amplitude error: {error_region}",
+            title=f"Amp. error: {error_region}",
             colorbar_label="Error [a.u.]",
             dx=dx,
             vmin=-amplitude_error_limit,
@@ -112,7 +118,7 @@ def save_reconstruction_comparison(
         _annotated_scalar_image(
             np.angle(truth),
             cmap="twilight",
-            title="B truth: phase",
+            title=f"{field_label} truth: phase",
             colorbar_label="Phase [rad]",
             dx=dx,
             vmin=-np.pi,
@@ -121,7 +127,7 @@ def save_reconstruction_comparison(
         _annotated_scalar_image(
             np.angle(rec),
             cmap="twilight",
-            title="B reconstruction: phase",
+            title=f"{field_label} reconstruction: phase",
             colorbar_label="Phase [rad]",
             dx=dx,
             vmin=-np.pi,
@@ -130,7 +136,7 @@ def save_reconstruction_comparison(
         _annotated_scalar_image(
             phase_error_display,
             cmap="coolwarm",
-            title=f"Wrapped phase error: {error_region}",
+            title=f"Phase error: {error_region}",
             colorbar_label="Error [rad]",
             dx=dx,
             vmin=-phase_error_limit,

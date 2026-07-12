@@ -1,4 +1,69 @@
 run:
   name: exp020_A_thin_phase_probe_recovery
-status: scaffold
-todo: Thin phase sample A creates unknown probe, B scan recovers probe.
+  output_root: runs
+  seed: 20260712
+
+experiment:
+  id: exp020
+  phase: Phase 2
+  status: implemented_and_validated
+  description: A thin phase sample creates an unknown probe; blind ePIE recovers probe and B before backpropagation to A.
+
+optics:
+  shape: [64, 64]
+  dx_m: 2.0e-6
+  wavelength_m: 5.32e-7
+  z_AB_m: 1.0e-3
+  z_BC_m: 1.0e-3
+  detector_pixel_size_m: 2.0e-6
+  medium_index: 1.0
+
+illumination:
+  type: plane_wave
+  amplitude: 1.0
+
+sample_a:
+  type: smooth_random_thin_phase
+  radius_m: 4.0e-5
+  phase_rms_rad: 0.5
+  correlation_length_m: 6.0e-6
+  seed: 20260721
+
+sample_b:
+  type: random_phase
+  phase_range_rad: 0.8
+  feature_size_px: 3
+  seed: 20260722
+
+scan:
+  type: jittered_grid
+  num_x: 9
+  num_y: 9
+  step_m: 1.0e-5
+  center: true
+  max_jitter_px: 1
+  jitter_seed: 20260723
+
+noise:
+  type: none
+
+reconstruction:
+  algorithm: constrained_blind_epie
+  num_iters: 180
+  beta_probe: 0.08
+  beta_object: 0.5
+  shuffle_positions: true
+  shuffle_seed: 20260724
+  initial_object_phase_std_rad: 0.02
+  initial_object_seed: 20260725
+  object_amplitude_bounds: [1.0, 1.0]
+  probe_l2_norm_from_mean_frame_energy: true
+  probe_constraint: A_plane_pure_phase_and_known_blank_reference
+  show_progress: false
+
+metrics:
+  illumination_threshold_fraction: 0.05
+
+output:
+  save_png: true
+  save_hdf5: true

@@ -4,7 +4,7 @@
 
 ## 共同核心结构
 
-仿真数据和真实实验数据都应该包含以下核心信息：
+仿真数据和真实实验数据的测量级核心信息为：
 
 ```text
 /entry/data/I_stack
@@ -17,14 +17,21 @@
 /entry/sample/sample_A_type
 /entry/sample/sample_B_type
 /entry/sample/tgv_parameters
-/entry/reconstruction/P_B_rec
-/entry/reconstruction/B_rec
-/entry/reconstruction/loss_curve
 /entry/config_yaml
 /entry/metadata/git_commit
 /entry/metadata/created_at
 /entry/metrics
 ```
+
+执行 reconstruction 的 workflow 再写入对应结果，例如：
+
+```text
+/entry/reconstruction/P_B_rec
+/entry/reconstruction/B_rec
+/entry/reconstruction/loss_curve
+```
+
+纯 forward 实验可以没有 `/entry/reconstruction`，不得用占位数组冒充重建结果。
 
 其中：
 
@@ -32,7 +39,7 @@
 - `scan_positions` 使用 SI 单位，列顺序约定为 `(x, y)`，单位为 m。
 - `instrument` 存放 wavelength、sampling、propagation distance、detector pixel size 等信息。
 - `sample` 存放样品 A / B 的类型和 TGV 参数。
-- `reconstruction` 存放恢复结果和 loss curve。
+- `reconstruction` 在实际执行重建时存放恢复结果和 loss curve。
 - `config_yaml` 存放本次运行使用的完整 YAML 配置，和外部 run 目录中的 `config.yaml` 对应。
 - `metadata` 存放 git commit、created time、run name 等运行元信息，和外部 run 目录中的 `metadata.json` 对应。
 - `metrics` 存放运行指标，和外部 run 目录中的 `metrics.json` 对应。
@@ -54,40 +61,14 @@
 
 不是每个仿真都必须包含全部 truth 字段。例如当前 `exp001` 会保存 `incident_probe_true`、`A_true`、`U_after_sample_true`、`U_detector_true` 和 `I_detector_true`。方案一的 B 扫描 forward model 可以继续保存 `P_B_true` 和 `B_true`。multi-slice TGV forward model 可以保存 `n_volume`。反向传播或重建结果不需要硬塞进 `run_forward.py`，应由后续 pipeline 脚本写入 `/entry/reconstruction/...`。
 
-## exp010 的 HDF5 内容
+## 实验级字段
 
-`exp010_epie_known_probe` 生成 `outputs/epie_known_probe.h5`，主要结构为：
+本文件只规定跨实验的通用结构。每个实验实际写入的 truth、reconstruction、metrics 和图片对应关系记录在 `docs/experiment_design/`，不在这里复制完整实验 tree。
 
-```text
-/entry/data/I_stack                         # (81, ny, nx), detector intensity
-/entry/data/scan_positions                  # (81, 2), columns are (x, y), unit m
-/entry/instrument/wavelength
-/entry/instrument/dx
-/entry/instrument/z_AB                      # 0, probe is directly defined on B plane
-/entry/instrument/z_BC
-/entry/instrument/detector_pixel_size
-/entry/instrument/medium_index
-/entry/sample/sample_A_type
-/entry/sample/sample_B_type
-/entry/sample/sample_B_parameters/...
-/entry/truth/P_B_true
-/entry/truth/B_true
-/entry/reconstruction/P_B_rec               # fixed known probe
-/entry/reconstruction/B_init
-/entry/reconstruction/B_rec                 # raw algorithm output
-/entry/reconstruction/B_rec_aligned_to_truth # simulation evaluation only
-/entry/reconstruction/loss_curve
-/entry/reconstruction/initial_data_fidelity_loss
-/entry/reconstruction/final_data_fidelity_loss
-/entry/reconstruction/illumination_map
-/entry/reconstruction/illuminated_mask
-/entry/reconstruction/settings/...
-/entry/config_yaml
-/entry/metadata/...
-/entry/metrics/...
-```
+- exp001：`docs/experiment_design/exp001_propagation_sanity.md`
+- exp010：`docs/experiment_design/exp010_epie_known_probe.md`
 
-`B_rec_aligned_to_truth` 使用了仿真真值来消除不可观测的 constant global phase，只能用于误差计算和可视化，不能视为真实实验 pipeline 的输出。真实实验 HDF5 应保存 `B_rec`，但不应创建这个 truth-aided dataset。
+使用 truth 做 global-phase alignment 的结果属于 simulation evaluation only，必须保留原始 reconstruction 并使用清晰字段名区分；真实实验不得生成 truth-aided alignment dataset。
 
 ## 真实实验数据
 

@@ -72,3 +72,48 @@ def test_known_probe_epie_keeps_probe_fixed_and_reduces_loss() -> None:
     assert result["loss_curve"].shape == (12,)
     assert result["loss_curve"][-1] < 0.5 * result["loss_curve"][0]
     assert result["illumination_map"].shape == shape
+
+
+def test_blind_epie_enforces_probe_l2_norm() -> None:
+    I_stack = np.ones((2, 8, 8), dtype=np.float64)
+    positions = np.zeros((2, 2), dtype=np.float64)
+    target = 5.0
+    result = epie_reconstruct(
+        I_stack,
+        positions,
+        dx=1e-6,
+        wavelength=532e-9,
+        z_BC=0.0,
+        num_iters=1,
+        beta_probe=0.1,
+        beta_object=0.1,
+        init_probe=np.ones((8, 8), dtype=np.complex128),
+        init_object=np.ones((8, 8), dtype=np.complex128),
+        update_probe=True,
+        object_amplitude_bounds=(1.0, 1.0),
+        probe_l2_norm_target=target,
+        show_progress=False,
+    )
+
+    probe_norm = np.sqrt(np.sum(np.abs(result["P_B_rec"]) ** 2))
+    assert np.isclose(probe_norm, target)
+
+
+def test_blind_epie_applies_probe_constraint() -> None:
+    def real_only(probe: np.ndarray) -> np.ndarray:
+        return np.abs(probe).astype(np.complex128)
+
+    result = epie_reconstruct(
+        np.ones((1, 8, 8), dtype=np.float64),
+        np.zeros((1, 2), dtype=np.float64),
+        dx=1e-6,
+        wavelength=532e-9,
+        z_BC=0.0,
+        num_iters=1,
+        init_probe=np.exp(0.5j) * np.ones((8, 8), dtype=np.complex128),
+        probe_constraint=real_only,
+        show_progress=False,
+    )
+
+    assert np.allclose(np.imag(result["P_B_rec"]), 0.0)
+    assert result["metadata"]["probe_constraint"] == "real_only"

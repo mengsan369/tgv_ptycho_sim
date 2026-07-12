@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -42,6 +43,12 @@ def _relative_amplitude_error(
     difference_energy = float(np.sum(np.abs(predicted - measured) ** 2))
     measured_energy = float(np.sum(np.abs(measured) ** 2))
     return float(np.sqrt(difference_energy / (measured_energy + np.finfo(float).eps)))
+
+
+def _field_l2_norm(field: NDArray[np.complexfloating]) -> float:
+    """Return an L2 norm without relying on platform BLAS/LAPACK loading."""
+
+    return float(np.sqrt(np.sum(np.abs(field) ** 2)))
 
 
 def _apply_amplitude_bounds(
@@ -93,6 +100,11 @@ def epie_reconstruct(
     shuffle_positions: bool = True,
     seed: int | None = None,
     object_amplitude_bounds: tuple[float, float] | None = None,
+    probe_l2_norm_target: float | None = None,
+    probe_constraint: Callable[
+        [NDArray[np.complex128]], NDArray[np.complex128]
+    ]
+    | None = None,
     show_progress: bool = True,
 ) -> dict[str, Any]:
     """Run a compact full-field ePIE reconstruction.
@@ -143,6 +155,11 @@ def epie_reconstruct(
         _apply_amplitude_bounds(
             np.ones((1, 1), dtype=np.complex128), object_amplitude_bounds
         )
+    if probe_l2_norm_target is not None and (
+        not np.isfinite(probe_l2_norm_target) or probe_l2_norm_target <= 0
+    ):
+        msg = "probe_l2_norm_target must be finite and positive."
+        raise ValueError(msg)
 
     shape = intensities.shape[1:]
     if init_probe is None:
@@ -157,16 +174,30 @@ def epie_reconstruct(
     if probe.shape != shape or obj.shape != shape:
         msg = "init_probe and init_object must match detector frame shape."
         raise ValueError(msg)
+    if probe_l2_norm_target is not None:
+        probe_norm = _field_l2_norm(probe)
+        if probe_norm <= np.finfo(float).eps:
+            msg = "Cannot normalize a zero-energy initial probe."
+            raise ValueError(msg)
+        probe *= probe_l2_norm_target / probe_norm
+    if probe_constraint is not None:
+        constrained = np.asarray(probe_constraint(probe.copy()), dtype=np.complex128)
+        if constrained.shape != shape or not np.all(np.isfinite(constrained)):
+            msg = "probe_constraint must return a finite field matching probe shape."
+            raise ValueError(msg)
+        probe = constrained
+        if probe_l2_norm_target is not None:
+            probe_norm = _field_l2_norm(probe)
+            if probe_norm <= np.finfo(float).eps:
+                msg = "probe_constraint returned a zero-energy field."
+                raise ValueError(msg)
+            probe *= probe_l2_norm_target / probe_norm
 
     measured_amp = np.sqrt(np.maximum(intensities, 0.0))
     initial_data_fidelity_loss = _evaluate_data_fidelity(
         probe, obj, measured_amp, positions, dx, wavelength, z_BC
     )
     loss_curve: list[float] = []
-    illumination_map = np.zeros(shape, dtype=np.float64)
-    for position_xy in positions:
-        illumination_map += np.real(_unshift_delta(np.abs(probe) ** 2, position_xy, dx))
-
     iterator = (
         trange(num_iters, desc="ePIE", leave=False, disable=not show_progress)
         if num_iters > 0
@@ -213,11 +244,36 @@ def epie_reconstruct(
             accum_loss += _relative_amplitude_error(pred_amp, measured_amp[idx])
         if object_amplitude_bounds is not None:
             obj = _apply_amplitude_bounds(obj, object_amplitude_bounds)
+        if probe_l2_norm_target is not None:
+            probe_norm = _field_l2_norm(probe)
+            if probe_norm <= eps:
+                msg = "Probe update produced a zero-energy field."
+                raise FloatingPointError(msg)
+            probe *= probe_l2_norm_target / probe_norm
+        if probe_constraint is not None:
+            constrained = np.asarray(
+                probe_constraint(probe.copy()), dtype=np.complex128
+            )
+            if constrained.shape != shape or not np.all(np.isfinite(constrained)):
+                msg = (
+                    "probe_constraint must return a finite field matching probe shape."
+                )
+                raise ValueError(msg)
+            probe = constrained
+            if probe_l2_norm_target is not None:
+                probe_norm = _field_l2_norm(probe)
+                if probe_norm <= eps:
+                    msg = "probe_constraint returned a zero-energy field."
+                    raise FloatingPointError(msg)
+                probe *= probe_l2_norm_target / probe_norm
         loss_curve.append(accum_loss / len(positions))
 
     final_data_fidelity_loss = _evaluate_data_fidelity(
         probe, obj, measured_amp, positions, dx, wavelength, z_BC
     )
+    illumination_map = np.zeros(shape, dtype=np.float64)
+    for position_xy in positions:
+        illumination_map += np.real(_unshift_delta(np.abs(probe) ** 2, position_xy, dx))
 
     return {
         "P_B_rec": probe,
@@ -235,6 +291,12 @@ def epie_reconstruct(
             "beta_probe": beta_probe,
             "beta_object": beta_object,
             "object_amplitude_bounds": object_amplitude_bounds,
+            "probe_l2_norm_target": probe_l2_norm_target,
+            "probe_constraint": (
+                getattr(probe_constraint, "__name__", type(probe_constraint).__name__)
+                if probe_constraint is not None
+                else None
+            ),
             "integer_pixel_shifts_only": True,
             "num_iters": num_iters,
             "todo": (
