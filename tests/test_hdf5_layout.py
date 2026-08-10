@@ -100,3 +100,67 @@ def test_exp020_hdf5_can_store_raw_and_evaluation_only_results() -> None:
             "/entry/reconstruction/simulation_evaluation_only/"
             "A_rec_aligned_to_truth" in h5
         )
+
+
+def test_exp030_hdf5_keeps_baseline_and_parameter_sweep_shapes() -> None:
+    output_path = _test_output_path("exp030")
+    num_cases, num_positions, ny, nx = 3, 5, 12, 14
+    field = np.ones((ny, nx), dtype=np.complex128)
+    stack = np.ones((num_positions, ny, nx), dtype=np.float64)
+    save_ptycho_hdf5(
+        output_path,
+        I_stack=stack,
+        scan_positions=np.zeros((num_positions, 2), dtype=np.float64),
+        instrument={"wavelength": 532e-9, "dx": 1e-6},
+        sample={"sample_A_type": "single_axisymmetric_TGV"},
+        truth={
+            "fill_path_length_m": np.ones((ny, nx), dtype=np.float64),
+            "A_effective_true": field,
+            "parameter_sweep": {
+                "d_waist_m": np.asarray([9e-6, 10e-6, 11e-6]),
+                "A_effective_true": np.stack([field] * num_cases),
+                "P_B_true": np.stack([field] * num_cases),
+                "I_stack_true": np.stack([stack] * num_cases),
+            },
+        },
+        reconstruction={
+            "cases": {
+                "baseline": {
+                    "P_B_rec_raw": field,
+                    "B_rec_raw": field,
+                    "loss_curve": np.asarray([0.2, 0.1], dtype=np.float64),
+                    "simulation_evaluation_only": {
+                        "P_B_rec_aligned_to_truth": field,
+                    },
+                }
+            }
+        },
+        config_yaml="run:\n  name: exp030\n",
+        metadata={"dataset_type": "simulation"},
+        metrics={"model_validation": {"zero_contrast_max_abs_error": 0.0}},
+    )
+
+    with h5py.File(output_path, "r") as h5:
+        assert h5["/entry/data/I_stack"].shape == (num_positions, ny, nx)
+        assert h5["/entry/truth/parameter_sweep/d_waist_m"].shape == (
+            num_cases,
+        )
+        assert h5["/entry/truth/parameter_sweep/A_effective_true"].shape == (
+            num_cases,
+            ny,
+            nx,
+        )
+        assert h5["/entry/truth/parameter_sweep/P_B_true"].dtype == np.complex128
+        assert h5["/entry/truth/parameter_sweep/I_stack_true"].shape == (
+            num_cases,
+            num_positions,
+            ny,
+            nx,
+        )
+        assert h5[
+            "/entry/reconstruction/cases/baseline/P_B_rec_raw"
+        ].shape == (ny, nx)
+        assert (
+            "/entry/reconstruction/cases/baseline/"
+            "simulation_evaluation_only/P_B_rec_aligned_to_truth"
+        ) in h5

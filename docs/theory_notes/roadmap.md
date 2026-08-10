@@ -18,6 +18,8 @@
 
 使用 effective 2D phase model 做早期 observability 测试。该模型只用于验证 probe sensitivity，不等价于真实三维腰径模型。
 
+状态：已由 `exp030_TGV_2d_effective_phase` 在单孔、轴对称、无噪声 projected-phase 条件下完成模型验证、采样/有限差分收敛、probe 与 detector sensitivity、local Jacobian 和 matched blind Stage D 检查。正式通过 run 为 `runs/exp030_TGV_2d_effective_phase_20260810_121124/`。该结论仍不表示真实 3D TGV 腰径已可测；多孔阵列、multislice、noise、tilt 和 parametric fitting 需要后续独立实验。
+
 ## Phase 4: 3D TGV multi-slice forward model
 
 生成轴对称 refractive-index volume，并用 multi-slice propagation 逐层传播。

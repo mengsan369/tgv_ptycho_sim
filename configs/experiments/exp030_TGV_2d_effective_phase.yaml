@@ -1,4 +1,182 @@
 run:
   name: exp030_TGV_2d_effective_phase
-status: scaffold
-todo: TGV-like 2D effective phase model for early sensitivity tests.
+  output_root: runs
+
+experiment:
+  id: exp030
+  phase: Phase 3
+  status: planned_pending_run
+  description: Single-TGV projected-phase sensitivity and local observability.
+
+optics:
+  shape: [384, 384]
+  dx_m: 2.5e-7
+  wavelength_m: 5.32e-7
+  z_AB_m: 1.0e-3
+  z_BC_m: 1.0e-3
+  detector_pixel_size_m: 2.5e-7
+  medium_index: 1.0
+
+illumination:
+  type: plane_wave
+  amplitude: 1.0
+
+tgv:
+  type: single_axisymmetric_air_filled_via_in_glass
+  thickness_m: 7.0e-4
+  d_top_m: 5.0e-5
+  d_waist_m: 3.33e-5
+  d_bottom_m: 5.0e-5
+  z_waist_m: 3.5e-4
+  n_glass: 1.5
+  n_air: 1.0
+  center_xy_m: [0.0, 0.0]
+
+projected_phase:
+  approximation: axial_projected_phase_relative_to_glass
+  integration_method: midpoint
+  dz_m: 1.0e-9
+  lateral_supersampling: 4
+  phase_scale: 1.0
+
+sensitivity:
+  # Numerical derivative steps only; these are not detection limits.
+  delta_d_waist_m: 4.8828125e-10
+  delta_d_waist_steps_m:
+    - 1.0e-6
+    - 1.25e-7
+    - 1.5625e-8
+    - 3.90625e-9
+    - 1.953125e-9
+    - 9.765625e-10
+    - 4.8828125e-10
+  delta_surface_diameter_m: 1.0e-6
+  delta_phase_scale_fraction: 0.01
+
+sampling_convergence:
+  relative_change_threshold: 0.05
+  fine_dz_m: 5.0e-10
+  fine_shape: [768, 768]
+  fine_dx_m: 1.25e-7
+  fine_lateral_supersampling: 2
+
+sample_b:
+  type: random_phase
+  phase_range_rad: 0.8
+  # 8 * 0.25 um keeps the previous 2 um physical feature size.
+  feature_size_px: 8
+  seed: 20260731
+
+scan:
+  type: jittered_grid
+  num_x: 7
+  num_y: 7
+  step_m: 8.0e-6
+  center: true
+  max_jitter_px: 1
+  # Preserve the previous paired physical jitter while refining dx.
+  jitter_quantum_m: 5.0e-7
+  jitter_seed: 20260732
+
+noise:
+  type: none
+
+local_observability:
+  parameters:
+    - d_waist
+    - common_surface_diameter
+    - phase_scale
+
+reconstruction:
+  enabled: true
+  require_sampling_convergence: true
+  algorithm: epie_operator_consistency_ablation
+  # The detector correction must be propagated with H^H as a residual.
+  # The historical inverse-difference formula is retained only in a labelled
+  # one-iteration fixed-point diagnostic below.
+  correction_mode: adjoint_residual
+  denominator_mode: epie
+  rpie_alpha_probe: 0.1
+  rpie_alpha_object: 0.1
+  object_boundary: periodic
+  beta_probe: 0.08
+  beta_object: 0.5
+  shuffle_positions: true
+  shuffle_seed: 20260733
+  initial_object_phase_std_rad: 0.02
+  initial_object_seed: 20260734
+  object_amplitude_bounds: [1.0, 1.0]
+  show_progress: false
+  reason_if_disabled: Stage D is gated on validated Stage A-C dx, dz, and finite-difference-step convergence.
+  operator_consistency_ablation:
+    enabled: true
+    # All baseline variants use identical data, scan, measurement-derived probe
+    # initialization, blind-object initialization, and shuffle seed unless the
+    # variant is explicitly labelled as a truth-assisted simulation diagnostic.
+    screening_num_iters: 60
+    variants:
+      - known_b_probe_only
+      - known_probe_object_only
+      - blind_unconstrained_with_energy_norm
+      - blind_unconstrained
+      - blind_legacy_coarse_a_constraint
+      - blind_radial_output_range_constraint
+      - blind_radial_adjoint_constraint
+    selected_sensitivity_variant: blind_radial_output_range_constraint
+    run_sensitivity_cases_if_floor_passes: true
+    # Do not form a recovered finite difference while reconstruction error is
+    # larger than the true plus/minus probe separation.
+    sensitivity_floor_to_signal_gate: 1.0
+    adjoint_test_seed: 20260806
+    radial_output_range_constraint:
+      ridge_fraction: 1.0e-13
+    radial_constraint:
+      application_interval: 5
+      internal_steps: 1
+      step_scale: 0.5
+      max_backtracking_steps: 8
+      power_iterations: 6
+      power_iteration_seed: 20260807
+    optimizer_study:
+      # Completed in run 20260809_204330; do not repeat its 1000-iteration
+      # known-B diagnostic while executing the blind long trajectory below.
+      enabled: false
+      scientific_role: simulation_diagnostic_only
+      correction_mode: adjoint_residual
+      # This bounds optimizer-study work; it does not include Stages A-C or the
+      # existing seven 60-iteration ablation cases.
+      runtime_budget_s: 6000.0
+      planning_seconds_per_iteration: 2.2
+      known_probe_object_only:
+        diagnostic_num_iters: 60
+        beta_object: 0.5
+        checkpoint_iterations: [1, 5, 20, 60]
+      known_b_probe_only:
+        beta_probe_candidates: [0.02, 0.08, 0.2, 0.5]
+        screening_num_iters: 30
+        normalization_screening_num_iters: 30
+        normalization_modes:
+          - none
+          - measurement_energy
+          - truth_probe_norm_simulation_diagnostic_only
+        selected_num_iters: 1000
+        checkpoint_iterations: [200, 500, 1000]
+        selection_metric: frozen_data_fidelity_loss_measurement_only
+      boundary_controls:
+        diagnostic_num_iters: 30
+        periodic_exterior: periodic_wrap
+        finite_exterior: constant_reference_transmission_1_plus_0j
+    blind_long_study:
+      enabled: true
+      variant_id: blind_radial_output_range_constraint
+      selected_num_iters: 1000
+      checkpoint_iterations: [200, 500, 1000]
+      sensitivity_floor_to_signal_gate: 1.0
+      beta_probe: 0.08
+      beta_object: 0.5
+      normalization_mode: none
+      object_boundary: periodic
+
+output:
+  save_png: true
+  save_hdf5: true

@@ -20,6 +20,74 @@ def _normalize_dx(dx: float | tuple[float, float]) -> tuple[float, float]:
     return value, value
 
 
+def make_angular_spectrum_transfer(
+    shape: tuple[int, int],
+    dx: float | tuple[float, float],
+    wavelength: float,
+    z: float,
+    n: float = 1.0,
+    bandlimit: bool = True,
+) -> NDArray[np.complex128]:
+    """Build a reusable angular-spectrum transfer array.
+
+    The array maps a source spectrum to the propagated spectrum.  Its complex
+    conjugate is the Euclidean adjoint transfer.  With ``bandlimit=True`` the
+    adjoint is not an inverse because the evanescent-frequency mask is a
+    projection.
+    """
+
+    if len(shape) != 2 or min(shape) <= 0:
+        msg = "shape must be a positive (ny, nx) tuple."
+        raise ValueError(msg)
+    if wavelength <= 0:
+        msg = "wavelength must be positive."
+        raise ValueError(msg)
+    if n <= 0:
+        msg = "n must be positive."
+        raise ValueError(msg)
+    dy, dx_x = _normalize_dx(dx)
+    if dy <= 0 or dx_x <= 0:
+        msg = "dx entries must be positive."
+        raise ValueError(msg)
+
+    ny, nx = int(shape[0]), int(shape[1])
+    ky = 2.0 * np.pi * np.fft.fftfreq(ny, d=dy)
+    kx = 2.0 * np.pi * np.fft.fftfreq(nx, d=dx_x)
+    kx_grid, ky_grid = np.meshgrid(kx, ky)
+    k_medium = 2.0 * np.pi * n / wavelength
+    kz_squared = k_medium**2 - kx_grid**2 - ky_grid**2
+
+    if bandlimit:
+        propagating = kz_squared >= 0.0
+        kz = np.zeros_like(kz_squared, dtype=np.float64)
+        kz[propagating] = np.sqrt(kz_squared[propagating])
+        transfer = np.zeros(shape, dtype=np.complex128)
+        transfer[propagating] = np.exp(1j * kz[propagating] * z)
+        return transfer
+
+    kz = np.sqrt(kz_squared.astype(np.complex128))
+    return np.exp(1j * kz * z).astype(np.complex128, copy=False)
+
+
+def apply_angular_spectrum_transfer(
+    field: ComplexArray,
+    transfer: ComplexArray,
+) -> NDArray[np.complex128]:
+    """Apply a precomputed angular-spectrum transfer to a 2D field."""
+
+    values = np.asarray(field, dtype=np.complex128)
+    kernel = np.asarray(transfer, dtype=np.complex128)
+    if values.ndim != 2:
+        msg = "field must be a 2D complex array."
+        raise ValueError(msg)
+    if kernel.shape != values.shape:
+        msg = "transfer must match field shape."
+        raise ValueError(msg)
+    return np.fft.ifft2(np.fft.fft2(values) * kernel).astype(
+        np.complex128, copy=False
+    )
+
+
 def angular_spectrum_propagate(
     U: ComplexArray,
     dx: float | tuple[float, float],
@@ -79,25 +147,7 @@ def angular_spectrum_propagate(
         msg = "n must be positive."
         raise ValueError(msg)
 
-    dy, dx_x = _normalize_dx(dx)
-    ny, nx = field.shape
-    ky = 2.0 * np.pi * np.fft.fftfreq(ny, d=dy)
-    kx = 2.0 * np.pi * np.fft.fftfreq(nx, d=dx_x)
-    kx_grid, ky_grid = np.meshgrid(kx, ky)
-
-    k_medium = 2.0 * np.pi * n / wavelength
-    kz_squared = k_medium**2 - kx_grid**2 - ky_grid**2
-
-    if bandlimit:
-        propagating = kz_squared >= 0.0
-        kz = np.zeros_like(kz_squared, dtype=np.float64)
-        kz[propagating] = np.sqrt(kz_squared[propagating])
-        transfer = np.zeros_like(field, dtype=np.complex128)
-        transfer[propagating] = np.exp(1j * kz[propagating] * z)
-    else:
-        kz = np.sqrt(kz_squared.astype(np.complex128))
-        transfer = np.exp(1j * kz * z)
-
-    spectrum = np.fft.fft2(field)
-    propagated = np.fft.ifft2(spectrum * transfer)
-    return propagated.astype(np.complex128, copy=False)
+    transfer = make_angular_spectrum_transfer(
+        field.shape, dx, wavelength, z, n=n, bandlimit=bandlimit
+    )
+    return apply_angular_spectrum_transfer(field, transfer)
