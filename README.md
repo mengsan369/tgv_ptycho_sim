@@ -59,31 +59,33 @@ pip install -e .
 pytest
 ```
 
-## 第一个 Sanity Check
+## 运行入口
 
-运行最小传播仿真：
+运行 exp001：
 
 ```bash
 python scripts/run_forward.py --config configs/experiments/exp001_propagation_sanity.yaml
 ```
 
-这个脚本会：
+运行 exp010：
 
-- 生成 plane wave；
-- 经过一个简单 thin phase disk；
-- 使用 angular spectrum method 传播一段距离；
-- 保存 intensity 图和 complex field 的 amplitude / phase 图；
-- 保存 `metadata.json`、`metrics.json` 和内部 HDF5 文件。
-
-输出会写入 `runs/exp001.../`，每个 run 目录建议保持：
-
-```text
-config.yaml（实际用的配置）
-metadata.json（运行元信息，保存了这次运行的身份信息）
-metrics.json（存了一些结果指标）
-figures/（存一些可视化结果）
-outputs/（机器可以读取的数据，主要是.h5格式）
+```bash
+python scripts/run_recon.py --config configs/experiments/exp010_epie_known_probe.yaml
 ```
+
+实验流程、HDF5 内容和图片说明统一记录在：
+
+- `docs/experiment_design/exp001_propagation_sanity.md`
+- `docs/experiment_design/exp010_epie_known_probe.md`
+
+## 项目规范与文档
+
+- 仓库级协作规则：[AGENTS.md](AGENTS.md)
+- 项目管理方法：[docs/project_management.md](docs/project_management.md)
+- 新实验任务模板：[docs/templates/experiment_task_prompt.md](docs/templates/experiment_task_prompt.md)
+- 实验记录目录：[docs/experiment_design/](docs/experiment_design/)
+- 阶段路线图：[docs/theory_notes/roadmap.md](docs/theory_notes/roadmap.md)
+- 通用 HDF5 格式：[docs/theory_notes/data_format.md](docs/theory_notes/data_format.md)
 
 ## 真实实验数据预留接口
 
@@ -151,7 +153,7 @@ docs/theory_notes/data_format.md
 
 ## 当前 TODO
 
-- ePIE / rPIE 目前是最小 scaffold，不是生产级 reconstruction engine。
+- ePIE / rPIE reconstruction engine 仍处于早期验证阶段，unknown probe reconstruction 尚待完善。
 - Multi-slice propagation 已有初版函数，但仍需要和已知 reference 做物理验证。
 - TGV 2D model 只是 effective thin phase phantom，不代表真实 waist geometry。
 - 真实实验数据的 preprocessing / calibration 目前只预留接口。
@@ -170,9 +172,7 @@ docs/theory_notes/data_format.md
 - `docs`:存一些文档，当用的知识和笔记
   docs/
 ├── theory_notes/       # 理论笔记：PIE、角谱法、OCT、HDF5
-├── experiment_design/  # 实验设计：光路、物料清单、采集流程
-├── material_list/      # 物料清单
-└── literature/         # 文献阅读记录
+└── experiment_design/  # 实验设计
 - `notebooks`:存的是ipynb文件，方便直接调试和可视化
 - `reports`：记录整理可以汇报的文档和图片
 - `runs`：每次仿真或重建的输出区，每跑一次实验，就保存一次完整结果，避免结果互相覆盖
@@ -192,24 +192,11 @@ figures/
 outputs/*.h5
 ```
 
-其中 `figures/` 里的 PNG 图片主要用于快速查看结果，不适合作为后续计算的主数据来源。`outputs/*.h5` 是更适合机器读取和长期复现的主数据文件。
-
-从当前版本开始，`run_forward.py` 生成的 HDF5 文件会保存：
-
-- `/entry/data/I_stack`：强度数据；
-- `/entry/data/scan_positions`：扫描位置；
-- `/entry/instrument/...`：波长、采样间隔、传播距离、探测器像素尺寸等；
-- `/entry/sample/...`：样品类型和样品参数；
-- `/entry/truth/...`：仿真真值，例如 `A_true`、`P_B_true`；
-- `/entry/config_yaml`：本次运行使用的完整 YAML 配置，对应外部的 `config.yaml`；
-- `/entry/metadata/...`：运行元数据，对应外部的 `metadata.json`；
-- `/entry/metrics/...`：运行指标，对应外部的 `metrics.json`。
-
-因此，对于当前的 sanity check，HDF5 已经包含除 PNG 可视化图片之外的大部分关键信息，包括 config、运行元数据和 metrics。`metadata.json`、`metrics.json` 仍然保留，是为了方便人直接打开查看；真正做后续批处理或重建时，优先读取 HDF5。
+其中 `figures/` 里的 PNG 图片主要用于快速查看结果，不适合作为后续计算的主数据来源。`outputs/*.h5` 是更适合机器读取和长期复现的主数据文件。通用 HDF5 layout 见 `docs/theory_notes/data_format.md`，各实验的具体字段和图片含义见 `docs/experiment_design/`。
 
 ## `.gitignore` 和 `.gitkeep` 说明
 
-这个项目目前还没有初始化 Git 仓库，但已经提前放好了 `.gitignore` 和一些 `.gitkeep` 文件，方便以后直接执行 `git init`。
+这个项目已经初始化 Git 仓库，并通过 `.gitignore` 和一些 `.gitkeep` 文件管理生成数据与空目录结构。
 
 `.gitignore` 是告诉 Git 哪些文件不要纳入版本管理。比如：
 

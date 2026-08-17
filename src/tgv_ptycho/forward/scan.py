@@ -54,3 +54,46 @@ def add_position_jitter(
     return np.asarray(positions, dtype=np.float64) + rng.normal(
         loc=0.0, scale=sigma, size=np.asarray(positions).shape
     )
+
+
+def add_integer_pixel_jitter(
+    positions: NDArray[np.floating],
+    dx: float | tuple[float, float],
+    max_jitter_px: int,
+    seed: int | None = None,
+) -> NDArray[np.float64]:
+    """Add reproducible integer-pixel jitter to ``(x, y)`` scan positions.
+
+    ``dx`` follows the field convention: a tuple is ``(dy, dx)`` in meters.
+    Jitter is sampled independently and uniformly from the inclusive interval
+    ``[-max_jitter_px, max_jitter_px]`` on each axis.
+    """
+
+    values = np.asarray(positions, dtype=np.float64)
+    if values.ndim != 2 or values.shape[1] != 2:
+        msg = "positions must have shape (num_positions, 2)."
+        raise ValueError(msg)
+    if max_jitter_px < 0:
+        msg = "max_jitter_px must be non-negative."
+        raise ValueError(msg)
+    if isinstance(dx, tuple):
+        if len(dx) != 2:
+            msg = "dx tuple must be (dy, dx) in meters."
+            raise ValueError(msg)
+        dy_m, dx_m = float(dx[0]), float(dx[1])
+    else:
+        dy_m = dx_m = float(dx)
+    if dy_m <= 0 or dx_m <= 0:
+        msg = "dx values must be positive."
+        raise ValueError(msg)
+
+    rng = np.random.default_rng(seed)
+    offsets_px = rng.integers(
+        -max_jitter_px,
+        max_jitter_px + 1,
+        size=values.shape,
+    )
+    offsets_m = np.empty_like(values)
+    offsets_m[:, 0] = offsets_px[:, 0] * dx_m
+    offsets_m[:, 1] = offsets_px[:, 1] * dy_m
+    return values + offsets_m
