@@ -1,5 +1,41 @@
 # exp030：TGV 2D projected-phase probe observability
 
+## 0. 当前状态与文档阅读说明
+
+当前最终状态：`Passed`
+
+最终审阅 run：
+
+```text
+runs/exp030_TGV_2d_effective_phase_20260810_121124/
+```
+
+当前结论：
+
+- exp030 的单孔、无噪声 projected-phase Stage A--D 已按本实验预设门限通过。
+- 修正 band-limited ASM 下 reconstruction residual 与 adjoint operator 的一致性后，blind reconstruction 的 probe error 随迭代继续下降。
+- matched baseline、waist-minus 和 waist-plus 在相同 reconstruction 条件下运行 200 iterations 后，恢复得到的 normalized probe sensitivity 与 truth 的相对偏差为 `3.55915e-7`，且腰径变化的排序与 truth 一致。
+- 该结果支持理想二维 projected-phase 模型下的局部差分 observability 和 paired blind recovery，不等价于真实三维 TGV 腰径已经能够准确测量。
+
+已知限制：
+
+- 当前结果基于单孔、无噪声、理想 projected-phase 模型和相同 optimizer 设置。
+- 当前使用的扫描、边界、采样和样品 B 条件仍属于阶段性仿真假设。
+- baseline 运行到 1000 iterations 后，absolute frozen detector-amplitude loss 仍约为真实 detector case separation 的 `4.18` 倍。
+- 当前通过的是 matched differential sensitivity gate；它依赖三组 reconstruction 的 common-mode bias 抵消，不表示每个独立 blind solution 的绝对 detector residual 已低于腰径信号。
+- 本实验不能代替三维 multislice、高保真电磁传播、噪声、标定误差或真实实验条件下的验证。
+
+文档结构说明：
+
+- 第 1--11 节：exp030 初次构建、预注册条件和第一次完整实验记录。
+- 第 12 节：A 到 B 连续径向传播、固定 detector sampling 和首次 Stage D 重跑。
+- 第 13 节：operator-consistency 消融、问题定位和约束比较。
+- 第 14 节：ePIE residual/adjoint 修正及 optimizer 长程控制实验。
+- 第 15 节：200/500/1000 长轨迹、matched cases、checkpoint 和 Stage D 最终完成记录。
+- 历史章节保留实验进行到当时的判断，不追溯修改。
+- 因此第 1 节中的 `Inconclusive` 是第一次实验记录形成时的历史状态，不是 exp030 的当前最终状态。
+- 阅读当前结论时，建议先阅读本节和第 15 节；需要追溯问题如何被定位和修正时，再依次阅读第 12--14 节。
+
 ## 1. 先用一句话说明这个实验
 
 exp030 要回答的是：
@@ -230,6 +266,25 @@ D_0
 }{\|P_B(D_0)\|_2}.
 $$
 
+此处
+
+$$
+
+v=\frac{\partial P_B}{\partial D_{\mathrm{waist}}}.
+
+$$
+
+$$
+
+\Pi_{\mathrm{gauge}}(v)
+=
+v-
+\frac{\langle P_B,v\rangle}
+{\langle P_B,P_B\rangle}P_B.
+$$
+
+其中第二项就是$v$中与原 $probe\ P_B$ 平行的部分，也就是“整个 probe 统一乘以一个复数”造成的变化。
+
 乘以名义腰径 $D_0$ 后，指标无量纲，便于不同参数尺度之间比较。它表示局部相对响应强度，不是“可检测的最小腰径”。
 
 代码还保存 amplitude、wrapped phase、gauge-aligned complex L2 和 derivative maps，因为单个总范数无法说明差异位于哪里、来自振幅还是相位。
@@ -261,7 +316,7 @@ $$
 dz:1.0\,\mathrm{nm}\rightarrow0.5\,\mathrm{nm}.
 $$
 
-为什么做这个检查？`midpoint` 方法沿 $z$ 把空气路径离散成薄层。若 $dz$ 太大，孔壁穿过某一层的位置会被错误归到整层空气或整层玻璃，造成假的腰径响应。
+为什么做这个检查？`midpoint` 方法沿 $z$ 把空气路径离散成薄层。若 $dz$ 太大，孔壁穿过某一层的位置会被错误归到整层空气或整层玻璃，造成假的腰径响应。注意：这里意味着我们还暂时采用离散的模型来直接对TGV的复透过率进行计算，不是用的积分的解析的解，而是采取离散求和的方法。
 
 ### 4.9 检查 $\Delta D$ step convergence
 
@@ -352,7 +407,7 @@ $$
 ```text
 dz convergence
 dx convergence
-finite-difference-step convergence
+finite-difference-step convergence（其实就是4.9所描述的，检查导数是否收敛）
 ```
 
 为什么把 Stage D 放在 gate 后？blind ePIE 可能很好地拟合一组数值上错误或混叠的数据。如果 forward sensitivity 尚未收敛，reconstruction 成功只会证明算法能重建离散伪影，不能证明它恢复了腰径信息。
@@ -570,7 +625,7 @@ E:\tgv_ptycho_sim\runs\exp030_TGV_2d_effective_phase_20260806_185142
 
 ### 12.1 旧实现为什么不能收敛
 
-旧实现先把只有约 $12.692\,\mathrm{nm}$ 周期的径向复相位条纹采样到 $125$--$250\,\mathrm{nm}$ 的二维数组，再做 FFT 传播。此时高频已经折叠成低频；后续再删除 evanescent frequency，无法判断某个低频分量原来是真实低频还是 alias。因此，旧的归一化 probe sensitivity 约 $701$--$1222$，主要是离散混叠，不应解释为物理灵敏度。
+旧实现先把只有约 $12.692\,\mathrm{nm}$ 周期的径向复相位条纹采样到 $125$--$250\,\mathrm{nm}$ 的二维数组，再做 FFT 传播。此时高频已经折叠成低频( 也就是发生了采样后的混叠，12.962 nm的周期空间频率约为$f_\mathrm{true}=\frac1{0.012692}\approx78.79\ \mathrm{cycles/\mu m}$ ,而采样频率 $f_s=\frac1{dx}=8\ \mathrm{cycles/\mu m}$ ,发生了混叠,导致这个高频量混到了低频中)；后续再删除 evanescent frequency( 也就是超过光波长对应的截止频率的部分 $f_\mathrm{cutoff}=\frac1{0.532}\approx1.88\ \mathrm{cycles/\mu m}$ )，无法判断某个低频分量原来是真实低还是 alias。因此，旧的归一化 probe sensitivity 约 $701$--$1222$，主要是离散混叠，不应解释为物理灵敏度。
 
 同时，旧 fine-grid detector 是 $768\times768$ 个、间距 $125\,\mathrm{nm}$ 的点采样，却直接和 $384\times384$、间距 $250\,\mathrm{nm}$ 的 baseline 点采样比较。配置中的 `detector_pixel_size_m` 当时只写入 metadata 和绘图，没有进入 detector forward，所以两边并不是同一个物理 detector。
 
@@ -585,19 +640,7 @@ $$
 只对 $q(r)$ 做连续的零阶 Fresnel--Hankel 积分，平面波参考单独解析传播：
 
 $$
-P_B(\rho,z)
-=
-A_0 e^{ikz}
-+
-A_0 e^{ikz}
-e^{ik\rho^2/(2z)}
-\frac{2\pi}{i\lambda_m z}
-\int_0^{R_{\max}}
-q(r)
-e^{ikr^2/(2z)}
-J_0\!\left(\frac{k\rho r}{z}\right)
-r\,\mathrm dr,
-$$
+P_B(\rho,z)=A_0 e^{ikz}+A_0 e^{ikz}e^{ik\rho^2/(2z)}\frac{2\pi}{i\lambda_m z}\int_0^{R_{\max}}q(r)e^{ikr^2/(2z)}J_0\!\left(\frac{k\rho r}{z}\right)r\,\mathrm dr,$$
 
 其中：
 
@@ -607,20 +650,70 @@ $$
 k=\frac{2\pi}{\lambda_m}.
 $$
 
-这样先在高分辨率一维径向积分中处理快速相位，再把已经传播后的平滑径向场采样到二维 B 平面。高频不会先在粗二维 A 网格中折叠成伪低频。无限的 $T=1$ 背景没有被错误截断成有限圆孔。
+这样先在高分辨率一维径向积分中处理快速相位，再把已经传播后的平滑径向场采样到二维 B 平面。高频不会先在粗二维 A 网格中折叠成伪低频。无限的 $T=1$ 背景没有被错误截断成有限圆孔（这句话很重要，因为如果没有这个条件，关注区域总是有限的，关注区域内的背景是1，此外数组没有包括的地方直接就被认为赋值成0了这显然不合理，相当于凭空加了个瞳孔导致了衍射，所以算法上要把投影透过函数拆开）。
 
-径向积分采用复合 midpoint rule：中央恒定相位平台用较疏节点，快速变化的 taper annulus 使用 $1\,\mathrm{nm}$ 节点；独立的 fine control 使用 $0.5\,\mathrm{nm}$。输出径向表间距为 $62.5\,\mathrm{nm}$，再插值到 $dx=0.25\,\mu\mathrm m$ 和 $0.125\,\mu\mathrm m$ 两个相同 FOV 的网格。
+径向积分采用复合 midpoint rule：中央恒定相位平台用较疏节点，快速变化的 taper annulus 使用 $1\,\mathrm{nm}$ 节点；独立的 fine control 使用 $0.5\,\mathrm{nm}$。（这里很重要，在计算上面那个有关q的路径积分时，为了将混叠降低，采用了很小的网格来计算透过率函数）输出径向表间距为 $62.5\,\mathrm{nm}$，再插值到 $dx=0.25\,\mu\mathrm m$ 和 $0.125\,\mu\mathrm m$ 两个相同 FOV 的网格。
 
-需要特别区分两类二维量：
+可以总结一下这个实验里有的网格：
 
-- HDF5 中原有的粗网格 `A_effective_true` 继续用于 projected path 验证和人工显示；
-- 真正生成新 `P_B_true` 的权威输入是新增的一维 `A_effective_radial_true` 及其径向 quadrature；不能再把粗 `A_effective_true` 直接送入普通二维 FFT，期待复现同一个 probe。
+---
+入射光
 
-径向 authoritative source 使用分段线性几何的解析 air path。于是 `dz` convergence 现在验证 midpoint projected map 与解析 path 的一致性，不再伪装成解析 A 到 B solver 的 `dz` 依赖。
+ $A_0(x,y)=1$ ,代码会保存一个
+$384\times384=147456$个复数的入射场数组。
+但在权威 $A\rightarrow B$ 计算中，平面波背景不需要逐像素传播，而是直接解析计算：
+$P_{\mathrm{reference}}=A_0e^{ikz}$
+所以这里真正进入径向传播公式的只是标量  $A_0=1$ ，没有进行FFT。
+
+---
+A平面径向透过率
+
+真正使用的不是二维 A 网格，而是一维半径数组,网格分成两段,总计9674个径向节点
+
+|径向区域|大间隔|节点数量|
+|---|---|---|
+|$0\sim16.15\,\mu\mathrm m$|$50\,\mathrm{nm}$|324|
+|$16.15\sim25.5\,\mu\mathrm m$|$1\,\mathrm{nm}$|9350|
+
+对每一个 $r_j$，代码直接计算：
+
+$$
+\ell_{\mathrm{air}}(r_j)
+\rightarrow
+\phi(r_j)
+\rightarrow
+T(r_j)=e^{i\phi(r_j)}
+\rightarrow
+q(r_j)=T(r_j)-1.
+$$
+
+---
+Fresnel–Hankel 积分
+
+对于每一个 B 平面径向位置 $\rho_l$，计算
+
+$$P_B(\rho_l)=
+A_0e^{ikz}
++
+C(\rho_l)
+\sum_{j=0}^{9673}
+q(r_j)
+e^{ikr_j^2/(2z)}
+J_0\!\left(\frac{k\rho_l r_j}{z}\right)
+r_j\Delta r_j$$
+
+B 平面径向坐标使用 $\Delta\rho=62.5\,\mathrm{nm}$,为了覆盖二维网格的最远角点，需要计算到约
+$\rho_{\max}=67.875\,\mu\mathrm m$,
+因此一共有1087 个 B 平面径向节点.
+
+---
+一维 $P_B(\rho)$ 转成二维 $P_B(x,y)$
+
+用上一步得到的径向数值采样插值即可，目前设定为baseline 384×384 nm，dx为250nm；fine conntrol 768×768，dx 为125nm。
 
 ### 12.3 固定物理 detector 的修正
 
-fine-grid irradiance 在和 baseline 比较前，先积分回固定的 $250\,\mathrm{nm}$ detector pixel。对于本配置，fine-grid bin factor 为 $2$：
+fine-grid irradiance 在和 baseline 比较前，先积分回固定的 $250\,\mathrm{nm}$ detector pixel，这里是为了改之前的探测器上的pixel不一样大的问题，必须先控制了变量，把pixel弄一样大了。对于本配置，fine-grid bin factor 为 $2$（意思是传播到探测器平面时，先用fine的数值来算，然后再加和到探测器像素上）：
 
 $$
 I^{\mathrm{pixel}}_{mn}
@@ -631,7 +724,7 @@ I^{\mathrm{pixel}}_{mn}
 I^{\mathrm{fine}}_{2m+a,\,2n+b}.
 $$
 
-这里保存均值而不是求和，因为它表示 pixel-average irradiance；若要得到 pixel power，还需乘同一个固定 detector pixel area。baseline bin factor 为 $1$，fine bin factor 为 $2$，两边最终均为 `(49, 384, 384)`。B、scan position 和所有 seed 保持相同。
+这里保存均值而不是求和，因为它表示 pixel-average irradiance（平均强度）；若要得到 pixel power，还需乘同一个固定 detector pixel area（其实和直接加起来一样，方便保存和节省空间吧）。baseline bin factor 为 $1$，fine bin factor 为 $2$，（也就是基础的250nm的网格和125nm的网格），两边最终均为 `(49, 384, 384)`。B、scan position 和所有 seed 保持相同。
 
 脚本还预先构造一次 B 到 C 的 angular-spectrum transfer，供同一网格上的所有 frame 复用。这只减少重复计算，没有改变原有 propagating-wave cutoff、周期 FFT 和 `np.roll` 边界语义。
 
@@ -677,7 +770,12 @@ All checks passed!
 
 旧 run 的 $dx$ 变化约为 probe $74.19\%$、intensity $70.11\%$；新结果分别降到约 $0.000296\%$ 和 $0.027377\%$。这说明本轮确实消除了主要的 rasterization alias 和 detector mismatch，而不是放宽阈值。
 
-当前 Fresnel 近轴路径仍有一个可量化限制。按整个输出角点和孔外缘之间的最坏横向距离估计：
+当前 Fresnel 近轴路径仍有一个可量化限制。
+
+这个限制来自近轴传播时，传播距离本应该是 $R=\sqrt{z^2+r^2}$ ,但Fresnel近似把他展开成 $R
+\approx z+\frac{r^2}{2z}$ ,忽略了高阶项
+
+按整个输出角点和孔外缘之间的最坏横向距离估计（也即是r/z的最大情况，也就是近轴近似误差最大的情况）：
 
 $$
 \frac{r_{\max}}{z}\approx0.0933,
@@ -727,6 +825,111 @@ local Jacobian 结果：
 因此，在这三个归一化列 `D_waist`、共同 surface diameter 和 `phase_scale` 组成的当前局部模型中，没有发现显式秩亏或强列相关。该结论仍不包含 $z_\mathrm{waist}$、tilt、偏心、材料色散、真实 3D 传播或实验误差。
 
 ### 12.7 Stage D 已执行，但 recovery 结论没有通过
+
+首先讲清楚一些指标的定义
+
+第一层：是否拟合 detector 数据
+
+Data-fidelity loss：用来验证是否拟合detector数据，定义是 detector 振幅的相对误差：
+$$
+L=
+\frac1{N_{\rm frame}}
+\sum_j
+\frac{
+\left\|
+|U^{\rm pred}_{C,j}|-\sqrt{I^{\rm meas}_j}
+\right\|_2
+}{
+\left\|\sqrt{I^{\rm meas}_j}\right\|_2
+}.
+$$
+
+第二层：单个 baseline 是否重建正确
+
+Baseline aligned probe error：
+$$E_P=
+\frac{
+\left\|
+P_{\rm rec}^{\rm aligned}-P_{\rm true}
+\right\|_2
+}{
+\|P_{\rm true}\|_2
+}$$
+
+Baseline aligned B error:
+
+$$E_B=
+\frac{
+\left\|
+B_{\rm rec}^{\rm aligned}-B_{\rm true}
+\right\|_2
+}{
+\|B_{\rm true}\|_2
+}$$
+
+注意这两者在计算误差时都处理掉了整体相位的偏差，也就是说去除不能唯一确定的 gauge，要注意因为 ePIE 同时恢复 \(P_B\) 和 B。错误可能在二者之间互相补偿：
+$$
+P_{\rm rec}B_{\rm rec}
+\approx
+P_{\rm true}B_{\rm true},
+$$
+即使单独的 probe 或 B 并不正确。
+
+第三层：是否保留腰径敏感度
+
+True normalized probe sensitivity：真实正向模型给出的灵敏度是
+
+$$
+S_{\rm true}=
+D_0
+\frac{
+\left\|
+\Pi_{\rm gauge}
+\left[
+\dfrac{P_+^{\rm true}-P_-^{\rm true}}{2\Delta D}
+\right]
+\right\|_2
+}{
+\|P_0^{\rm true}\|_2
+}.
+$$
+
+Recovered normalized probe sensitivity:
+用三个重建 probe 做完全相同的计算：
+$$
+S_{\rm rec}=
+D_0
+\frac{
+\left\|
+\Pi_{\rm gauge}
+\left[
+\dfrac{P_+^{\rm rec}-P_-^{\rm rec}}{2\Delta D}
+\right]
+\right\|_2
+}{
+\|P_0^{\rm rec}\|_2
+}.
+$$
+
+Recovered/true sensitivity relative deviation:
+定义为
+$$
+\varepsilon_S=
+\frac{|S_{\rm rec}-S_{\rm true}|}
+{|S_{\rm true}|}.
+$$
+
+Plus/minus ordering:
+分别计算 baseline 到两个扰动 case 的距离：
+$$
+e_-=
+\frac{\|P_- -P_0\|_2}{\|P_0\|_2},
+\qquad
+e_+=
+\frac{\|P_+ -P_0\|_2}{\|P_0\|_2}.
+$$
+
+以上就是三个层次的指标，下面正式讲实验结果。
 
 三组 constrained blind ePIE 均执行了 180 iterations。baseline 的 data-fidelity loss 从 $0.349213$ 降到 $0.184847$，另外两组的最终 loss 也约为 $0.185$。loss 确实下降，但停在较高平台；simulation-evaluation-only 指标显示：
 
@@ -816,14 +1019,14 @@ runner 已在本轮末尾修正为直接计算上述范数比，但按“不覆�
 
 本节只记录 2026-08-06 继续执行的 Stage D operator-consistency ablation。前面的实验说明和历史结果没有被改写。本轮要回答的问题不是“多跑一些 iteration 会不会偶然变好”，而是把旧 Stage D 中混在一起的几个误差源拆开：
 
-1. B 到 C 的 detector forward 和 frozen data-fidelity loss 是否与仿真数据一致；
-2. 已知 B 时，当前 probe update 自身能达到什么 60-iteration screening error；
+1. B 到 C 的 detector forward 和 frozen data-fidelity loss（意思是把最终的 $P_B$ 和 B 固定，再重新计算全部帧的损失） 是否与仿真数据一致；
+2. 已知 B 时，当前 probe update 自身能达到什么 60-iteration screening error（“Screening”是短迭代筛选，例如先运行60轮，而不是最终长期重建）；
 3. 已知 probe 时，当前 B update 自身能达到什么 screening error；
-4. blind ePIE 在没有 A-plane constraint 时的误差是多少；
-5. 旧 coarse A-plane pure-phase constraint 是否会主动破坏正确的 probe；
-6. 与连续径向 A 到 B forward 成对的 adjoint 是否数值正确；
+4. blind ePIE 在没有 A-plane constraint（一些先验的限制，比如纯相位假设） 时的误差是多少；
+5. 旧 coarse A-plane pure-phase constraint（这个是指A样品是纯相位样品的约束，这个限制会在盲ePIE上对$P_B$ 再做一次更新） 是否会主动破坏正确的 probe；
+6. 与连续径向 A 到 B forward 成对的 adjoint （指的是foward的共轭转置）是否数值正确；
 7. 数学正确的 adjoint 能否直接当作稳定 inverse 或 constraint；
-8. 如果只施加与连续径向输出采样一致的 B-plane range constraint，能否降低 blind probe error。
+8. 如果只施加与连续径向输出采样一致的 B-plane range constraint，能否降低 blind probe error。（range是值域的意思，这也可以作为一个限制）
 
 最终有效 run 为：
 
@@ -843,14 +1046,19 @@ Stage D: Inconclusive
 
 ### 13.1 先做不需要 reconstruction 的一致性检查
 
-本轮首先直接检查 authoritative truth pair。把同一 run 的 `P_B_true` 和 `B_true` 送入当前 B 到 C forward，得到：
+本轮首先直接检查 authoritative truth pair
+($(P_B^{\mathrm{true}},B^{\mathrm{true}})$)。把同一 run 的 `P_B_true` 和 `B_true` 送入当前 B 到 C forward，得到：
 
 | 检查 | 结果 |
 |---|---:|
 | direct detector-intensity relative L2 | $0$ |
 | ePIE frozen detector-amplitude loss | $4.16573\times10^{-13}$ |
 
-因此 detector 数据、B 到 C propagation 和 frozen loss 之间没有隐藏的 operator mismatch。旧 Stage D 的约 $0.185$ loss 平台不能归因于 detector forward 生成了另一套数据。
+ direct detector-intensity relative:直接把真值$P_B$ 和 B用传播子传播一下，这里当然为0，因为我们的detector就是用$P_B$ 和 B 真值用传播子传播出来的。
+
+ ePIE frozen detector-amplitude loss则是把固定当前 $P_B$ 和 $B$（这里直接用的真值，所以理论也应该没有），用它们重新计算全部49帧，再对每帧 detector 振幅误差取平均。
+
+基于上面的数据 detector 数据、B 到 C propagation 和 frozen loss 之间没有隐藏的 operator mismatch。旧 Stage D 的约 $0.185$ loss 平台不能归因于 detector forward 生成了另一套数据。
 
 然后把正确的 `P_B_true` 只通过一次旧 constraint：
 
@@ -861,6 +1069,19 @@ P_B_true
   -> pixelwise |A|=1 projection
   -> coarse ASM propagation to B
 ```
+coarse ASM backpropagation to A:用角谱法把 probe 从 B 平面反向传播到 A 平面
+
+glass-reference correction:反传播后的场可能带有整体的相位或振幅，代码利用已知孔外区域拟合并删除这些量，使孔外尽量恢复为 $A= 1$,形式近似为
+$$
+A_{\rm corrected}(x,y)=
+\frac{A_{\rm raw}(x,y)}
+{a\,e^{i(\phi_0+k_xx+k_yy)}}.
+$$
+它的目标是让孔外参考区域整体接近 $A_{\rm corrected}\approx1$,它是个整体的改动
+
+pixelwise |A|=1 projection:无论当前结果是什么，都把它拉到“逐像素单位振幅且孔外为1”的集合中,保持强物理先验。
+
+Coarse ASM propagation to B：把经过强制修改的 A 平面场重新传播到 B
 
 结果为：
 
@@ -870,7 +1091,34 @@ P_B_true
 | gauge-aligned probe relative L2 | $0.299083$ |
 | 使用 true B 后的 detector-amplitude relative L2 | $0.231197$ |
 
-这是一条直接的因果证据：旧 constraint 的可行集合不包含 authoritative continuous-radial truth probe。它单次就引入约 $29.9\%$ 的 gauge-aligned probe error，与上一 run 最终约 $31.6\%$ 的 recovered probe error 同量级。旧 Stage D 的首要问题确实是 operator/range mismatch，而不是 detector 已经丢失 waist signature。
+Raw probe relative L2：直接比较旧约束输出和原始 truth：
+$$
+E_{\rm raw}=
+\frac{
+\|\widetilde P_B-P_B^{\rm true}\|_2
+}{
+\|P_B^{\rm true}\|_2
+}.
+$$
+
+Gauge-aligned probe relative L2:先寻找最合适的全局复数和相位斜坡，对齐后再计算：
+$$
+E_{\rm aligned}=
+\frac{
+\|\widetilde P_B^{\rm aligned}-P_B^{\rm true}\|_2
+}{
+\|P_B^{\rm true}\|_2
+}.
+$$
+
+使用 true B 后的 detector-amplitude relative L2:把**被旧约束破坏**后的 probe $\widetilde P_B$与完全正确的 $B^{\rm true}$ 相乘，再传播到 detector,然后和真实 detector 振幅比较。
+
+这是一条直接的因果证据：旧 constraint 的可行集合不包含 authoritative continuous-radial truth probe,也就是
+$$P_B^{\rm true}=
+\text{连续径向 Fresnel–Hankel forward}[T_A(r)].$$
+它单次就引入约 $29.9\%$ 的 gauge-aligned probe error，与上一 run 最终约 $31.6\%$ 的 recovered probe error 同量级。旧 Stage D 的首要问题确实是 operator/range mismatch，而不是 detector 已经丢失 waist signature。
+
+原因也是可以推测的，我们在A到B的传播中是用了很精细的网格，但在使用限制时我们又是用了粗糙的角谱，不搭配。
 
 ### 13.2 连续径向 forward 的线性部分和加权 adjoint
 
@@ -906,13 +1154,44 @@ p_{\mathrm{ref}}+A\delta t,
 A=SF.
 $$
 
-本轮没有把 `np.interp` 反向调用冒充 adjoint，而是为每个 Cartesian pixel 保存相同的左右径向节点和插值权重，并通过 scatter-add 实现严格的 $S^{\mathrm H}$。采用：
+这里前向的过程很明确，就是把连续的积分离散化，但是后面的验证的作用比较复杂，可以概括为“ePIE 给出一个当前 probe $p_{\mathrm{ePIE}}$ 后，怎样修改 A 平面径向透过率 $t$，使它通过同一个权威 forward 生成更接近 $p_{\mathrm{ePIE}}$ 的 probe？”这其实是ePIE后的优化，要从probe反解A了。
+
+上一节提到，旧方法里
+
+$$p_{\mathrm{ePIE}}
+\xrightarrow{\text{粗 ASM 反传}}
+A
+\xrightarrow{|A|=1}
+A'
+\xrightarrow{\text{ASM 正传}}
+p'.
+$$
+
+会造成极大的误差，现在要采取新方法了，新方法把正确的物理 forward
+$$
+p_{\rm model}(t)=p_{\rm ref}+A(t-1)
+$$
+嵌入优化，通过 adjoint 计算梯度，寻找能生成当前 $P_B$ 的 $t(r)$,放弃了之前的反传求A。
+
+优化问题首先要定义残差，首先要算B的残差，定义为旧的A生成的probe B和ePIE算出来的probe B，但probe B和A的透过率矩阵结构不同，需要一个算子，将 B 平面的误差反向分配给 A 平面的各个径向节点。这个算子就是 adjoint（要区分一下，不是线性代数里面的古典伴随矩阵，伴随矩阵是由内积关系定义的）：
+
+$$
+A^\dagger:
+\quad
+\text{probe B的残差}
+\longrightarrow
+\text{A平面梯度}.
+$$
+
+下面是实验具体的$A^\dagger$的生成本轮没有把 `np.interp` 反向调用冒充 adjoint，而是为每个 Cartesian pixel 保存相同的左右径向节点和插值权重，并通过 scatter-add 实现严格的 $S^{\mathrm H}$(共轭转置，S是插值部分的矩阵)。采用：
 
 $$
 \langle x,y\rangle_A
 =
 \sum_j\mu_j\overline{x_j}y_j,
 $$
+
+（A平面的径向内积，注意有个权重$\mu_j$代表了径向情况下面积不同贡献不同）
 
 以及：
 
@@ -922,6 +1201,8 @@ $$
 dx^2\sum_q\overline{u_q}v_q,
 $$
 
+（B平面的笛卡尔内积，dx平方表示面积，这两个内积公式都是把积分化成离散形式）
+
 总算子的加权 adjoint 为：
 
 $$
@@ -930,10 +1211,35 @@ A^\dagger
 W_A^{-1}F^{\mathrm H}S^{\mathrm H}W_B.
 $$
 
+（W类似度量矩阵）
+
+综上，这一节里面新型的A平面物理约束可概括为：
+一次新型 A 平面物理约束可以概括为：
+
+$$
+\boxed{
+\begin{aligned}
+&\text{ePIE得到当前二维 probe }p\\
+&\downarrow\\
+&\text{当前径向 source }t\text{ 用 forward模型 生成 }m\\
+&\downarrow\\
+&\text{计算 B 平面残差 }r=gm-p\\
+&\downarrow\\
+&\text{用 }A^\dagger\text{ 把残差变成 A 平面梯度}\\
+&\downarrow\\
+&\text{只更新 source 相位，保持 }|t|=1\\
+&\downarrow\\
+&\text{用同一个 forward 重新生成 probe}\\
+&\downarrow\\
+&\text{交还给下一轮 ePIE}
+\end{aligned}
+}
+$$
+
 实际数值检查得到：
 
 | 连续径向 operator 检查 | 结果 |
-|---|---:|
+|---|:---|
 | weighted adjoint inner-product relative error | $5.55711\times10^{-15}$ |
 | forward reproduction relative L2 | $1.48765\times10^{-15}$ |
 | truth fixed-point raw relative L2 | $1.49720\times10^{-15}$ |
@@ -942,11 +1248,124 @@ $$
 | pure-phase source amplitude max error | $2.22045\times10^{-16}$ |
 | estimated weighted operator norm squared | $0.9971193$ |
 
+解释一下这里各个指标的含义：
+
+---
+
+weighted adjoint inner-product relative error：
+Adjoint 必须满足：
+
+$$
+\langle Ax,y\rangle_B
+=
+\langle x,A^\dagger y\rangle_A.
+$$
+
+所以随机生成了一个A平面的径向向量x和一个B平面的向量y来计算两边差了多少。
+
+---
+forward reproduction relative ：因为已经有一个真实的$P_B^{\rm true}$，现在把同一份真实径向透过率 $t^{\rm true}$ 输入新构建的矩阵算子：
+
+$$
+P_B^{\rm operator}
+=
+p_{\rm ref}
++
+SF(t^{\rm true}-1).
+$$
+
+然后比较：
+
+$$
+\varepsilon_{\rm forward}
+=
+\frac{
+\|P_B^{\rm operator}-P_B^{\rm true}\|_2
+}{
+\|P_B^{\rm true}\|_2
+}.
+$$
+
+---
+truth fixed-point raw relative：对真实的$P_B^{\rm true}$是加一次约束，看看变化多大,理论应该为0.
+
+$$P_B^{\rm true}
+\xrightarrow{\text{new constraint}}
+P_B^{(1)}.$$
+
+$$
+\varepsilon_{\rm fixed}
+=
+\frac{
+\|P_B^{(1)}-P_B^{\rm true}\|_2
+}{
+\|P_B^{\rm true}\|_2
+}.
+$$
+---
+Truth fixed-point detector-amplitude relative：将约束后的 $P_B^{(1)}$ 与真实 B 配对：
+$$
+U_{C,j}^{(1)}=
+\mathcal P_{B\rightarrow C}
+\left[P_B^{(1)}B_j^{\rm true}\right].
+$$
+然后与真实 detector amplitude 比较：
+$$
+\varepsilon_{\rm det}=
+\frac{
+\left\|
+|U_C^{(1)}|-\sqrt{I_C^{\rm true}}
+\right\|_2
+}{
+\left\|\sqrt{I_C^{\rm true}}\right\|_2
+}.
+$$
+---
+Truth fixed-point idempotence relative：Idempotence 意思是幂等性，这个意味着对真实probe B添加多次约束后是否变化。
+
+代码连续施加两次：
+$$
+P_B^{(1)}=C(P_B^{\rm true}),
+$$
+$$
+P_B^{(2)}=C(P_B^{(1)}),
+$$
+然后计算
+$$
+\varepsilon_{\rm idem}=
+\frac{
+\|P_B^{(2)}-P_B^{(1)}\|_2
+}{
+\|P_B^{(1)}\|_2
+}.
+$$
+
+---
+Pure-phase source amplitude max error：真实 A 平面径向 source 应满足纯相位条件：
+$$
+t_j=e^{i\phi_j},
+\qquad |t_j|=1.
+$$
+指标定义为
+$$
+\varepsilon_{\rm amp}=
+\max_j\left||t_j|-1\right|.
+$$
+---
+Estimated weighted operator norm squared
+定义为
+$$
+\|A\|^2=
+\max_{x\ne0}
+\frac{\|Ax\|_B^2}{\|x\|_A^2}.
+$$
+它表示 A 平面扰动经过 forward 后，能量最多被放大多少。
+
 所以 continuous radial forward/adjoint pair 已在 float64 精度内通过。后续失败不能再解释为“adjoint 公式写错”。
 
 ### 13.3 为什么数学正确的 adjoint 不等于稳定 inverse
 
-本轮实现了 source-side pure-phase projected-gradient control。给定当前 source transmission $t$ 和 ePIE probe $p$，先计算：
+本轮实现了 source-side pure-phase projected-gradient control（这一串中source-side指的是直接对source也就是A侧直接优化，pure-phase projected-gradient control可以理解为基于纯相位的投影梯度的约束方法，我们不直接用梯度，而是用只改变相位的梯度）。给定当前 source transmission $t$ 和 ePIE probe $p$，先计算：
 
 $$
 m
@@ -975,7 +1394,7 @@ $$
 A^\dagger\!\left(\overline g\,r\right).
 $$
 
-在 pure-phase manifold 上使用：
+在 pure-phase manifold（纯相位的解空间） 上使用：
 
 $$
 \nabla_\phi\Phi
@@ -986,24 +1405,50 @@ $$
 \right],
 $$
 
-并通过 power-iteration step 和 backtracking 保证每个内部 projected step 不增加其局部 radial objective。最后必须重新执行同一个 forward，而不是在 Cartesian B plane 对 model 和旧 probe 做线性混合。
+并通过 power-iteration step 和 backtracking（这俩都是优化的方法，一个估计步长，一个在步长太过的时候回退） 保证每个内部 projected step 不增加其局部 radial objective（也就是我们定下的优化目标）。最后必须重新执行同一个 forward，而不是在 Cartesian B plane 对 model 和旧 probe 做线性混合。
 
-这个实现通过了 adjoint 和 truth fixed-point 测试，但它不是一个良态 inverse。当前 source 有 $9674$ 个 pure-phase unknown，而径向 B 表只有 $1087$ 个 complex samples。即使忽略有限视场和插值，source 反演也有很大的 null space。于是：
+这个实现通过了 adjoint 和 truth fixed-point 测试（通过这俩测试说明现有的约束不会把真解推走，但不能保证求出真解），但它不是一个良态 inverse。当前 source 有 $9674$ 个 pure-phase unknown，而径向 B 表只有 $1087$ 个 complex samples（9674个未知量对
+2174个实观测量，信息量不足）。即使忽略有限视场和插值，source 反演也有很大的 null space（那些经过forward后几乎不产生输出变化的source变化）。于是：
 
-- truth transmission 与 truth probe 的联合状态是机器精度 fixed point；
+- truth transmission 与 truth probe 的联合状态是机器精度，$t_{\rm true}$和$
+p_{\rm true}$这一对儿是这套约束下的不动点；
 - 从 $t=1$ 开始，仅靠自由的 9674-point phase update 很难找到正确 source；
-- “每个 adjoint step 都让局部 objective 下降”不代表嵌入 ePIE 后的全局 detector loss 或 probe error 会更好；
+- “每个 adjoint step 都让局部 objective 下降”不代表嵌入 ePIE 后的全局 detector loss 或 probe error 会更好（这一点很重要，我们用约束优化了A产生了新的probe B不代表这个probe B对探测器上的结果更好）；
 - 不能把 $A^\dagger$ 当成 $A^{-1}$。
 
-这也是本轮保留 `blind_radial_adjoint_constraint` 作为诊断组，而不把它选为最终 primary constraint 的原因。
+这也是本轮保留 `blind_radial_adjoint_constraint` 作为**诊断组**（因为真解一定会被留下），而不把它选为最终 primary constraint 的原因。
 
-### 13.4 增加不伪装成 A inverse 的径向 B-plane range control
+### 13.4 增加不做 A inverse 的轴对称径向 B-plane range control
 
-为了回答“只去掉非轴对称、与当前正入射单孔 forward 不一致的 B-plane 分量是否有帮助”，本轮另实现：
+本节提出是一个比“A 平面反演约束”更温和的约束，即不去反演 A 平面的 TGV 透过率，只要求重建出的 B-plane probe 符合轴对称径向场的形式
+
+在具体数学实现上，先设
+
+$p$：ePIE 得到的二维 Cartesian probe；
+
+$q$：一维径向复数表，共1087个节点；
+
+$S$：把径向表 $q(r)$ 线性插值到二维网格的算子。
+
+先寻找最能拟合当前 probe 的径向表：
+$$
+q^*=\arg\min_q\left(
+\|Sq-p\|_2^2+\epsilon\|q\|_2^2
+\right),
+$$
+其解为
+$$
+q^*=(S^{\mathrm H}S+\epsilon I)^{-1}S^{\mathrm H}p.
+$$
+然后重新生成轴对称二维 probe：
+$$
+\Pi_S=Sq^*.
+$$
+
+具体实现上：
 
 $$
-\Pi_S
-=
+\Pi_S=
 S
 \left(
 S^{\mathrm H}S+\epsilon I
@@ -1028,9 +1473,35 @@ $$
 | truth fixed-point detector-amplitude relative L2 | $2.91489\times10^{-12}$ |
 | idempotence relative L2 | $4.32859\times10^{-12}$ |
 
+再讲一下这些指标的定义：
+
+---
+active radial nodes / total：参与插值的点的比例。
+
+---
+truth fixed-point raw relative：验证真值加了约束能不能得到正确的结果，这里先是probe B。
+
+---
+truth fixed-point detector-amplitude relative：同上面，不过是验证probe B被施加约束后再传播到探测器的振幅
+
+---
+idempotence relative：验证是不是不动点，即真值被施加了约束再施加，偏移有多大。
+
+---
 这些误差远低于本实验约 $10^{-5}$ 的 true case separation。需要明确：$\Pi_S$ 只约束 B plane 输出属于当前轴对称 radial sampling range；它不是 A-plane inverse，也不证明已经恢复 `D_waist`。
 
 ### 13.5 七个 baseline ablation 的设置
+
+这里是七组对照试验（ablation意为消融实验），这七组共享stageA-C的同一份baseline detector data，然后再进入stageD做区分，比较，所有组公用的条件包括
+
++ 同一套baseline探测器数据；
++ 同一扫描位置；
++ 同一随机扫描顺序和shuffle seed；
++ 相同ePIE参数；
++ 每组先运行60轮，用于screening比较；
++ 除明确说明外，probe都从探测器数据反传播得到的初始化开始，不是真实probe；
++ 除明确说明外，样品B都从同一个随机相位初始化开始；
++ 样品B都施加纯相位振幅范围 $|B|=1$。
 
 所有组都使用同一 baseline detector data、同一 scan、同一 measurement-derived probe initialization、同一 blind-object initialization 和同一 shuffle seed。每组 screening 为 60 iterations。
 
@@ -1044,15 +1515,34 @@ $$
 | `blind_radial_output_range_constraint` | $\Pi_S$ B-plane radial range | 否 | 测一致的轴对称输出先验 |
 | `blind_radial_adjoint_constraint` | full source forward/adjoint projected step | 否 | 测高维 source-side constraint |
 
+其中：
+
+实验3：保留旧的probe energy norm，每轮之后将probe缩放到固定L2范数：
+$$
+P_B\leftarrow
+P_B\frac{\|P_B\|_{\rm target}}{\|P_B\|_2}.
+$$
+
+类似于把能量归一化
+
+实验4：完全无多余限制，仍有公共的探测器振幅约束和 $|B|=1$ 等基础限制
+
+实验5：使用旧版coarse ASM A-plane pure-phase constraint，同时包含probe energy norm，这是之前失败的实验。
+
+实验6：无energy norm；使用13.4中的轴对称限制，把每轮的probe投影到轴对称径向的空间中。
+
+实验7：无energy norm；使用13.2建立的连续径向forward/加权adjoint，在A侧维护纯相位source，通过13.3的projected-gradient更新source，再用同一个forward重新生成B-plane probe。
+
 known-B 和 known-probe 结果在 HDF5 中明确标为 `simulation_diagnostic_only`。五个 blind variants 的 truth-input flags 均为 false；truth alignment 只出现在 `simulation_evaluation_only` 下。
 
 ### 13.6 energy-norm control 的结论
 
+这一节主要比较实验3和实验4，即是否保留energy norm
+
 旧 probe norm target 来自 detector frame energy：
 
 $$
-\lVert P\rVert_{\mathrm{target}}
-=
+\lVert P\rVert_{\mathrm{target}}=
 359.3781478.
 $$
 
@@ -1060,19 +1550,17 @@ $$
 
 $$
 \lVert P_{\mathrm{true}}\rVert_2
-=
-359.5483682.
+=359.5483682.
 $$
 
 相对偏差为：
 
 $$
-4.73429\times10^{-4}
-=
+4.73429\times10^{-4}=
 0.04734\%.
 $$
 
-这是因为当前 propagating-wave cutoff 并非严格的离散 unitary map。该 bias 约是真实 probe case separation 的 38 倍，所以它不适合作为 $10^{-5}$ 级定量 sensitivity 的物理恒等式。
+这是因为我们计算 $\lVert P\rVert_{\mathrm{target}}$ 是从探测器数据估计的，但当前 propagating-wave cutoff 并非严格的离散 unitary map。该 bias 约是真实 probe case separation（也就是由腰径变换带来的探针变化） 的 38 倍，所以它不适合作为 $10^{-5}$ 级定量 sensitivity 的物理恒等式。
 
 不过在当前 60-iteration blind screening 中，有 norm 和无 norm 两组的 aligned probe error 分别为 $0.001735679$ 和 $0.001735669$，相对差约 $5.7\times10^{-6}$。因此 energy norm 在理论上不严格，但它不是本轮 observed recovery floor 的主要来源。
 
@@ -1090,7 +1578,9 @@ $$
 | blind radial B-range | $0.308752$ | $0.00729305$ | $1.786\times10^{-7}$ | $0.000258122$ | $20.7217$ | $0.0276409$ |
 | blind radial A-adjoint | $0.359845$ | $0.111586$ | $-1.836\times10^{-3}$ | $0.154877$ | $12433.4$ | $0.0282329$ |
 
-必须避免把所有这些数值都称为已证明的“算法固有 floor”。它们是同条件的 **60-iteration screening residual/error**。known-B 和 radial A-adjoint 的 tail 仍明显为负，没有证明已经达到渐近收敛。blind unconstrained、known-probe 和 radial B-range 的 tail 已接近平台，因此它们更接近当前设置下的 practical screening floor。
+首先确定loss，error大部分都是无量纲的比例量，然后值得注意的是probe error/true signal指的是算法在复原probe B后产生的误差与ΔD带来的probe的变换的比值。B是样品决定的，ΔD不会对B产生变化，所以没有B error/true signal
+
+必须避免把所有这些数值都称为已证明的“算法固有 floor”（这个词的意思就是无论在跑多少轮次都无法逾越的平台）。它们是同条件的 **60-iteration screening residual/error**。known-B 和 radial A-adjoint 的 tail 仍明显为负（也就是最后几轮展现出来的斜率），没有证明已经达到渐近收敛。blind unconstrained、known-probe 和 radial B-range 的 tail 已接近平台，因此它们更接近当前设置下的 practical screening floor。
 
 本表支持以下定量比较：
 
@@ -1101,6 +1591,8 @@ $$
 - full radial A-adjoint 虽然每个内部 step 都降低其局部 source objective，但当前嵌入方式产生 $15.49\%$ probe error，不能当成有效 inverse；
 - known-probe object-only 的 B error 仍为 $2.76\%$，且 frozen loss 与多个 blind variants 的约 $0.0073$ 平台几乎相同，说明当前 B update、ePIE 优化、周期边界或 object 表示是剩余 plateau 的重要来源；
 - known-B probe-only 在 60 iterations 后仍有 $0.9885\%$ probe error，说明简单的 sequential probe update 即使已知 B，也远未达到本实验 $10^{-5}$ signal 所需的精度。
+
+此处还有后续，可以看到实验1和2中已知一个真值来进行ePIE的结果都不太好，后续第14节发现是一个反传的过程推导错误，这个错误甚至会导致probe B和B的真值都不能作为不动点。
 
 ### 13.8 为什么没有继续运行 recovered plus/minus sensitivity
 
@@ -1139,7 +1631,7 @@ $$
 20.7217.
 $$
 
-该比值仍大于预设 gate $1$，所以脚本正确记录：
+该比值仍大于预设 gate =$1$，所以脚本正确记录：
 
 ```text
 not_run_reconstruction_floor_exceeds_true_signal
@@ -1149,7 +1641,11 @@ not_run_reconstruction_floor_exceeds_true_signal
 
 ### 13.9 loss 图为什么增加 frozen final point
 
-`epie_reconstruct()` 的 `loss_curve` 记录每个 iteration 内 sequential update 的平均 loss；外部 probe constraint 在 iteration 末尾施加。`final_data_fidelity_loss` 则是在所有 update 和 constraint 完成后，用冻结的最终 probe/B 对完整 stack 重新评估。
+`epie_reconstruct()` 的 `loss_curve` 记录每个 iteration 内 sequential update（这里是说每一帧probe B和B都会更新） 的平均 loss；外部 probe constraint 在 iteration 末尾施加。
+
+`final_data_fidelity_loss` 则是在所有 update 和 constraint 完成后，用冻结的最终 probe/B 对完整 stack 重新评估。
+
+也就是说一轮的loss其实是每帧loss的平均，但每帧的loss会变，所以最终定下probe B和B的结果后，我们就不更新的求一轮loss，这就是`final_data_fidelity_loss`。
 
 二者不应混为同一个量。旧图只画 sequential curve，特别会掩盖：
 
