@@ -17,16 +17,16 @@ configs/experiments/exp001_propagation_sanity.yaml
 运行脚本：
 
 ```text
-scripts/run_forward.py
+scripts/run_exp001_forward.py
 ```
 
 在项目根目录执行：
 
 ```bash
-python scripts/run_forward.py --config configs/experiments/exp001_propagation_sanity.yaml
+python scripts/run_exp001_forward.py --config configs/experiments/exp001_propagation_sanity.yaml
 ```
 
-VS Code 中也可以使用 `.vscode/launch.json` 里的 `run_forward exp001` 配置启动调试。
+VS Code 中也可以使用 `.vscode/launch.json` 里的 `run_exp001_forward exp001` 配置启动调试。
 
 ## 实验流程
 

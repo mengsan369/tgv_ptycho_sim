@@ -59,7 +59,7 @@ def _make_sample_transmission(
             float(sample_cfg["diameter_m"]) / 2.0,
         )
         return aperture.astype(np.complex128)
-    msg = f"Unsupported sample type for run_forward.py: {sample_type}"
+    msg = f"Unsupported sample type for run_exp001_forward.py: {sample_type}"
     raise ValueError(msg)
 
 

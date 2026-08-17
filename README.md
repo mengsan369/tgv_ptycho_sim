@@ -64,13 +64,13 @@ pytest
 运行 exp001：
 
 ```bash
-python scripts/run_forward.py --config configs/experiments/exp001_propagation_sanity.yaml
+python scripts/run_exp001_forward.py --config configs/experiments/exp001_propagation_sanity.yaml
 ```
 
 运行 exp010：
 
 ```bash
-python scripts/run_recon.py --config configs/experiments/exp010_epie_known_probe.yaml
+python scripts/run_exp010_recon.py --config configs/experiments/exp010_epie_known_probe.yaml
 ```
 
 实验流程、HDF5 内容和图片说明统一记录在：

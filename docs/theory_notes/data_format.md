@@ -59,7 +59,7 @@
 /entry/truth/I_detector_true
 ```
 
-不是每个仿真都必须包含全部 truth 字段。例如当前 `exp001` 会保存 `incident_probe_true`、`A_true`、`U_after_sample_true`、`U_detector_true` 和 `I_detector_true`。方案一的 B 扫描 forward model 可以继续保存 `P_B_true` 和 `B_true`。multi-slice TGV forward model 可以保存 `n_volume`。反向传播或重建结果不需要硬塞进 `run_forward.py`，应由后续 pipeline 脚本写入 `/entry/reconstruction/...`。
+不是每个仿真都必须包含全部 truth 字段。例如当前 `exp001` 会保存 `incident_probe_true`、`A_true`、`U_after_sample_true`、`U_detector_true` 和 `I_detector_true`。方案一的 B 扫描 forward model 可以继续保存 `P_B_true` 和 `B_true`。multi-slice TGV forward model 可以保存 `n_volume`。反向传播或重建结果不需要硬塞进 `run_exp001_forward.py`，应由后续 pipeline 脚本写入 `/entry/reconstruction/...`。
 
 ## 实验级字段
 
