@@ -83,7 +83,12 @@ def midpoint_z_grid(
     thickness: float,
     dz: float,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-    """Return midpoint integration coordinates and slice widths in meters."""
+    """Return midpoint coordinates and exact slice widths in meters.
+
+    ``dz`` is a target maximum width.  A shorter final slice is used when
+    necessary, and ratios numerically indistinguishable from an integer do not
+    create a zero-width remainder slice.
+    """
 
     if not np.isfinite(thickness) or thickness <= 0.0:
         msg = "thickness must be finite and positive."
@@ -91,12 +96,24 @@ def midpoint_z_grid(
     if not np.isfinite(dz) or dz <= 0.0:
         msg = "dz must be finite and positive."
         raise ValueError(msg)
-    num_slices = int(np.ceil(thickness / dz))
-    edges = np.concatenate(
-        [np.arange(num_slices, dtype=np.float64) * dz, [thickness]]
+    ratio = thickness / dz
+    nearest_integer = int(np.rint(ratio))
+    ratio_tolerance = (
+        32.0 * np.finfo(np.float64).eps * max(1.0, abs(ratio))
     )
-    edges = np.minimum(edges, thickness)
+    if nearest_integer >= 1 and abs(ratio - nearest_integer) <= ratio_tolerance:
+        num_slices = nearest_integer
+    else:
+        num_slices = int(np.ceil(ratio))
+
+    edges = np.empty(num_slices + 1, dtype=np.float64)
+    edges[:-1] = np.arange(num_slices, dtype=np.float64) * dz
+    edges[-1] = thickness
     widths = np.diff(edges)
+    if np.any(widths <= 0.0) or not np.all(np.isfinite(widths)):
+        msg = "slice construction produced non-positive or non-finite widths."
+        raise RuntimeError(msg)
+    widths[-1] += thickness - float(np.sum(widths, dtype=np.float64))
     centers = edges[:-1] + 0.5 * widths
     return centers.astype(np.float64), widths.astype(np.float64)
 

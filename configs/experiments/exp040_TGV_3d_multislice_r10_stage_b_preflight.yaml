@@ -1,0 +1,70 @@
+run:
+  name: exp040_TGV_3d_multislice_r10_stage_b_preflight
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R10_stage_b_preflight
+  scientific_result: false
+  description: Formal-grid homogeneous cylindrical-PML sparse-LU feasibility preflight.
+
+provenance:
+  stage_a_run: runs/exp040_TGV_3d_multislice_r10_stage_a_20260815_162021
+  stage_a_repaired_hdf5_sha256: 8044FB2CA0B39E7F72D3FBCA97E98F376C4DDE6B1C284E23B752F132CEA3F16B
+  stage_a_status: Passed
+  stage_a_interpretation: scalar_lateral_reference_closed
+  stage_b_allowed: true
+
+physics:
+  wavelength_m: 5.32e-7
+  n_glass: 1.5
+  n_air: 1.0
+  interface_z_m: 1.0e-4
+  incident_amplitude: 1.0
+
+grid:
+  id: fine_nominal
+  dr_m: 8.333333333333333e-8
+  dz_m: 8.333333333333333e-8
+  radial_core_max_m: 2.4e-5
+  z_core_min_m: -2.0e-6
+  z_core_max_m: 1.02e-4
+  pml_thickness_m: 2.0e-6
+  expected_nr: 312
+  expected_nz: 1296
+  expected_unknowns: 404352
+
+pml:
+  coordinate_stretch: cylindrical_complex_coordinate
+  polynomial_order: 3
+  target_one_way_amplitude: 1.0e-8
+  radial_reference_medium: air
+  lower_z_reference_medium: glass
+  upper_z_reference_medium: air
+  outer_boundary: scattered_field_zero_dirichlet_at_half_cell_distance
+
+solver:
+  package: scipy_splu
+  sparse_format: csc
+  permc_spec: COLAMD
+  manufactured_vector: cos_radial_times_sin_axial_times_1_plus_0p25j
+  zero_contrast_normalization: analytic_scattered_field_zero
+
+thresholds:
+  available_memory_before_gib_min: 3.0
+  factor_and_solve_wall_s_max: 180.0
+  process_peak_rss_gib_max: 6.0
+  solve_relative_residual_max: 1.0e-9
+  manufactured_recovery_relative_l2_max: 1.0e-8
+  algebra_absolute_or_relative_max: 1.0e-12
+  require_all_finite: true
+
+output:
+  hdf5_filename: exp040_r10_stage_b_preflight.h5
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - run_progress.json
+    - outputs/exp040_r10_stage_b_preflight.h5

@@ -1,0 +1,187 @@
+run:
+  name: exp040_TGV_3d_multislice_r12
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R12
+  scientific_result: true
+  description: Pre-registered core60, Q2/Q3 FEM, enlarged-FOV, alias-controlled ASM, and QDHT closure.
+
+provenance:
+  r11_run: runs/exp040_TGV_3d_multislice_r11_20260815_195136
+  r11_metrics_sha256: 72B1FAD6ED2AD1D8F00E30CF6F003601FA862CDF7B2646C6EA9EC93CB670621B
+  r11_core48_checkpoint_sha256: 02BFAA2A11EF62E5FA45D717D407F04C8EBB8DBA43B05AB9463318D527629146
+  r11_chord512_checkpoint_sha256: 1BAC1C293D94E087439765C2B1C3C870600DC5C4257508A0D041105A239F6E2F
+  preflight_run: runs/exp040_TGV_3d_multislice_r12_preflight_20260817_140707
+  preflight_config_sha256: 7425CD0B2D31F83D04870ADFFA37B47E1322C5EEA0BE8C4619A3A91AE24A404F
+  preflight_metrics_sha256: D549820DF8DCDB05C81BE693EB7DFD112FD929BF5433975D99256FB67DDC7D2A
+  preflight_hdf5_sha256: D8A8DD21EE4770AA04DB1B713B89DF9E751E83E1C4E0C5EC33F826B97C0081CF
+
+physics:
+  wavelength_m: 5.32e-7
+  n_glass: 1.5
+  n_air: 1.0
+  background_interface_z_m: 1.0e-4
+  incident_amplitude: 1.0
+  sample_thickness_m: 1.0e-4
+  d_top_m: 3.0e-5
+  d_waist_m: 2.0e-5
+  d_bottom_m: 3.0e-5
+  z_waist_m: 5.0e-5
+
+domain:
+  formulation: axisymmetric_scattered_field_contrast_source
+  fixed_case_order: [adc_fine_core60]
+  z_core_min_m: -2.0e-6
+  z_core_max_m: 1.02e-4
+  pml_thickness_m: 2.0e-6
+  axial_material_subnodes: 8
+  cases:
+    adc_fine_core60:
+      radial_core_max_m: 6.0e-5
+      dr_m: 8.333333333333333e-8
+      dz_m: 8.333333333333333e-8
+      expected_nr: 744
+      expected_nz: 1296
+      expected_unknowns: 964224
+  pml:
+    coordinate_stretch: cylindrical_complex_coordinate
+    polynomial_order: 3
+    target_one_way_amplitude: 1.0e-8
+    outer_boundary: scattered_field_zero_dirichlet_at_half_cell_distance
+  solver:
+    package: scipy_splu
+    sparse_format: csc
+    permc_spec: COLAMD
+    retain_one_matrix_and_lu_at_a_time: true
+
+fem:
+  formulation: continuous_tensor_product_axisymmetric_weak_form
+  fixed_case_order: [fem_p2_core60, fem_p3_core60]
+  radial_core_max_m: 6.0e-5
+  z_core_min_m: -2.0e-6
+  z_core_max_m: 1.02e-4
+  pml_thickness_m: 2.0e-6
+  radial_extent_m: 6.2e-5
+  z_min_m: -4.0e-6
+  z_max_m: 1.04e-4
+  radial_element_size_m: 5.0e-7
+  axial_element_size_m: 5.0e-7
+  interpolation_nodes: legendre_gauss_lobatto
+  quadrature_order: 8
+  material_rule: pointwise_analytic_interface_at_quadrature_nodes
+  cases:
+    fem_p2_core60: {degree: 2, expected_unknowns: 106888}
+    fem_p3_core60: {degree: 3, expected_unknowns: 240684}
+  pml:
+    coordinate_stretch: cylindrical_complex_coordinate
+    polynomial_order: 3
+    target_one_way_amplitude: 1.0e-8
+  solver:
+    package: scipy_splu
+    sparse_format: csc
+    permc_spec: COLAMD
+    retain_one_matrix_and_lu_at_a_time: true
+
+observation:
+  z_m: 1.01e-4
+  normalization: total_field_divided_by_analytic_background
+  phase_scale_shift_tilt_alignment: false
+
+multislice:
+  fixed_case_order:
+    - chord_fov96_standard
+    - chord_fov128_standard
+    - chord_fov128_alias
+  cases:
+    chord_fov96_standard: {shape: [768, 768], dx_m: 1.25e-7, alias_control: false, expected_slice_count: 400}
+    chord_fov128_standard: {shape: [1024, 1024], dx_m: 1.25e-7, alias_control: false, expected_slice_count: 400}
+    chord_fov128_alias: {shape: [1024, 1024], dx_m: 1.25e-7, alias_control: true, expected_slice_count: 400}
+  dz_m: 2.5e-7
+  interface_rule: analytic_chord_gauss_legendre_cell_average
+  interface_order: 64
+  effective_index_rule: linear_cell_average_of_index
+  propagation_operator: centered_symmetric_split_step
+  internal_reference_index: 1.5
+  post_exit_air_distance_m: 1.0e-6
+  crop_rule: centered_same_dx_physical_window
+
+qdht:
+  id: qdht_r64_n512
+  order: 0
+  sample_count: 512
+  radial_max_m: 6.4e-5
+  dz_m: 2.5e-7
+  propagated_quantity: normalized_contrast
+  background_representation: analytic_unit_carrier
+  interface_rule: pointwise_analytic_radius_on_qdht_nodes
+  post_exit_air_distance_m: 1.0e-6
+  gate_role: report_only
+
+comparison:
+  cartesian_shape: [512, 512]
+  cartesian_dx_m: 1.25e-7
+  trace_sampling_m: 8.333333333333333e-8
+  physical_passband_cutoff_cycles_per_m: 1879699.2481203007
+  passband_boundary_inclusive: true
+  annular_bin_width_m: 1.25e-7
+  annular_maximum_radius_m: 2.0e-5
+  comparison_max_radius_m: 2.0e-5
+  guard_width_m: 2.0e-6
+  weighted_norm: two_pi_r_relative_l2
+  domain_pair: [adc_fine_core48, adc_fine_core60]
+  fem_pair: [fem_p2_core60, fem_p3_core60]
+  final_helmholtz_reference: fem_p3_core60
+  fov_gate_pair: [chord_fov96_standard, chord_fov128_standard]
+  final_multislice_reference: chord_fov128_alias
+  phase_scale_shift_tilt_alignment: false
+
+anisotropy:
+  radius_count: 160
+  radius_spacing_m: 1.25e-7
+  theta_count: 720
+  interpolation_order: 3
+  harmonics: [4, 8]
+
+thresholds:
+  solve_relative_residual_max: 1.0e-9
+  algebra_absolute_or_relative_max: 1.0e-12
+  domain_passband_relative_l2_max: 5.0e-2
+  outer_guard_rms_ratio_max: 5.0e-2
+  mesh_passband_relative_l2_max: 5.0e-2
+  fov_passband_relative_l2_max: 5.0e-2
+  polar_angular_relative_l2_max: 5.0e-2
+  cross_model_materiality_relative_l2: 5.0e-2
+  require_all_finite: true
+
+conditional_execution:
+  cross_model_requires: [domain_gate_pass, fem_mesh_gate_pass, cartesian_reference_gate_pass]
+  vector_model_enabled: false
+
+output:
+  hdf5_filename: exp040_r12.h5
+  figure_filenames:
+    - r12_domain_fem_controls.png
+    - r12_cartesian_fov_alias_qdht.png
+    - r12_conditional_cross_model.png
+  save_sparse_matrices: false
+  save_full_rz_fields: false
+  save_slice_volumes: false
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - run_progress.json
+    - checkpoints/adc_fine_core60.npz
+    - checkpoints/fem_p2_core60.npz
+    - checkpoints/fem_p3_core60.npz
+    - checkpoints/chord_fov96_standard.npz
+    - checkpoints/chord_fov128_standard.npz
+    - checkpoints/chord_fov128_alias.npz
+    - checkpoints/qdht_r64_n512.npz
+    - outputs/exp040_r12.h5
+    - figures/r12_domain_fem_controls.png
+    - figures/r12_cartesian_fov_alias_qdht.png
+    - figures/r12_conditional_cross_model.png

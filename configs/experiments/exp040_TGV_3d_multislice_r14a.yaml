@@ -1,0 +1,67 @@
+run:
+  name: exp040_TGV_3d_multislice_r14a
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R14A
+  scientific_result: true
+  description: Pre-registered axial Q4 derivative-floor and PML attribution.
+
+provenance:
+  failed_preflight_run: runs/exp040_TGV_3d_multislice_r14_preflight_20260817_161959
+  failed_preflight_metrics_sha256: BC516A9A0428C7696A1E49D6CD175514D41D12E3DB3E97A0B1D53BB7F1366879
+  failed_preflight_hdf5_sha256: DFC6B68547DD9A2FCEC3DEF1CA8E676626B09DBD653C3C8339BC37E248D58C1B
+  locked_baseline_case: glass_downward
+
+axial_attribution:
+  formulation: one_dimensional_cartesian_weak_form
+  basis: legendre_gauss_lobatto_continuous_fem
+  wavelength_m: 5.32e-7
+  refractive_index: 1.5
+  direction: -1
+  physical_core_length_m: 4.0e-6
+  degree: 4
+  quadrature_order: 12
+  polynomial_order: 3
+  target_one_way_amplitude: 1.0e-8
+  measurement_fractions: [0.2, 0.5, 0.8]
+  dense_comparison_count: 401
+  fixed_case_order: [glass_h16_pml2, glass_h24_pml2, glass_h24_pml3]
+  mesh_convergence_case_order: [locked_glass_h12_pml2, glass_h16_pml2, glass_h24_pml2]
+  cases:
+    glass_h16_pml2: {element_size_m: 6.25e-8, pml_thickness_m: 2.0e-6}
+    glass_h24_pml2: {element_size_m: 4.1666666666666664e-8, pml_thickness_m: 2.0e-6}
+    glass_h24_pml3: {element_size_m: 4.1666666666666664e-8, pml_thickness_m: 3.0e-6}
+
+thresholds:
+  derivative_metric_convergence_order_min: 3.0
+  field_metric_convergence_order_min: 4.0
+  incoming_to_outgoing_ratio_max: 1.0e-3
+  outgoing_impedance_residual_max: 1.0e-3
+  dense_field_relative_l2_max: 1.0e-3
+  pml2_to_pml3_raw_field_relative_l2_max: 1.0e-4
+  direct_solver_relative_residual_max: 1.0e-10
+  require_all_finite: true
+
+conditional_execution:
+  formal_solver_scaling_enabled: false
+  full_tgv_execution_enabled: false
+  rerun_r12: false
+  rerun_r13: false
+  rerun_failed_preflight: false
+  scalar_cross_model_enabled: false
+  vector_model_enabled: false
+
+output:
+  hdf5_filename: exp040_r14a.h5
+  figure_filename: r14a_axial_attribution.png
+  checkpoint_filename: glass_h24_pml2.npz
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - outputs/exp040_r14a.h5
+    - figures/r14a_axial_attribution.png
+    - checkpoints/glass_h24_pml2.npz

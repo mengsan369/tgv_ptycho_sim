@@ -1,0 +1,136 @@
+run:
+  name: exp040_TGV_3d_multislice_r13
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R13
+  scientific_result: true
+  description: Pre-registered cylindrical-PML reflection and physical-k hp-FEM pollution diagnostics.
+
+provenance:
+  r12_run: runs/exp040_TGV_3d_multislice_r12_20260817_141417
+  r12_metrics_sha256: 50BFDE52D50092D2EBEB97B0BC7DAA7DE442FE0E21EA165461CB084CB973604E
+  r12_hdf5_sha256: 4FA90ABF2925129DC6DC184BED4540DA162C3213B37FF0755C8FAC6C0593AC98
+  r12_cartesian_checkpoint: runs/exp040_TGV_3d_multislice_r12_20260817_141417/checkpoints/chord_fov128_alias.npz
+  r12_cartesian_checkpoint_sha256: A35D9B8FC58AC2298444FCC67D9D8155001F4FBB24A2191396213654DF0AB528
+  preflight_run: runs/exp040_TGV_3d_multislice_r13_preflight_20260817_150046
+  preflight_metrics_sha256: 768560E917245846C10C84D555B6EDEEF4731B4A60FECD3E5F71BF9DF810E519
+  preflight_hdf5_sha256: 920C52A32D13C840A09DBF5F304033CB0ECC9C2B567A5AA362F0C7E42EAA3FFD
+  scientific_contract_sha256: B37A16F0E6D4F91B498BE4240C2D83A8CA727259A6A38B2B35FEB25EEF51EBB0
+
+domain_reflection:
+  formulation: one_dimensional_annular_axisymmetric_weak_form
+  basis: legendre_gauss_lobatto_continuous_fem
+  wavelength_m: 5.32e-7
+  refractive_index: 1.0
+  inner_radius_m: 2.0e-5
+  element_size_m: 8.333333333333333e-8
+  degree: 4
+  quadrature_order: 12
+  fixed_case_order: [core48_pml2, core60_pml2]
+  cases:
+    core48_pml2: {pml_start_m: 4.8e-5, pml_thickness_m: 2.0e-6}
+    core60_pml2: {pml_start_m: 6.0e-5, pml_thickness_m: 2.0e-6}
+  pml:
+    coordinate_stretch: radial_complex_coordinate
+    polynomial_order: 3
+    target_one_way_amplitude: 1.0e-8
+    outer_boundary: homogeneous_dirichlet
+  inner_boundary: unit_normalized_outgoing_hankel_dirichlet
+  common_measurement_radii_m: [2.4e-5, 3.2e-5, 4.0e-5, 4.6e-5]
+  dense_comparison_min_m: 2.1e-5
+  dense_comparison_max_m: 4.6e-5
+  dense_comparison_count: 1001
+  decomposition: local_hankel_h1_h2_field_derivative_2x2
+  flux: r_times_imag_conjugate_u_du_dr
+  sommerfeld_control: exact_outgoing_hankel_impedance
+
+physical_k_pollution:
+  nondimensionalization: formal_element_size_equals_one
+  formal_kh: 8.85787
+  domain_radial_extent: 4.0
+  domain_axial_extent: 4.0
+  radial_mode: 7
+  axial_mode: 8
+  complex_amplitude: [1.0, 0.2]
+  interface_radius: 1.73
+  homogeneous_n2: 1.0
+  interface_inner_n2: 0.4444444444444444
+  interface_outer_n2: 1.0
+  evaluation_count_per_axis: 129
+  fixed_case_order:
+    - h1_p2
+    - h1_p3
+    - h1_p4
+    - h1_p6
+    - h1_p8
+    - h0p5_p2
+    - h0p5_p3
+    - h0p5_p4
+    - h0p5_p6
+    - h0p25_p2
+    - h0p25_p3
+    - h0p25_p4
+  cases:
+    h1_p2:    {element_size_ratio: 1.0, degree: 2, quadrature_order: 12}
+    h1_p3:    {element_size_ratio: 1.0, degree: 3, quadrature_order: 12}
+    h1_p4:    {element_size_ratio: 1.0, degree: 4, quadrature_order: 12}
+    h1_p6:    {element_size_ratio: 1.0, degree: 6, quadrature_order: 16}
+    h1_p8:    {element_size_ratio: 1.0, degree: 8, quadrature_order: 20}
+    h0p5_p2: {element_size_ratio: 0.5, degree: 2, quadrature_order: 12}
+    h0p5_p3: {element_size_ratio: 0.5, degree: 3, quadrature_order: 12}
+    h0p5_p4: {element_size_ratio: 0.5, degree: 4, quadrature_order: 12}
+    h0p5_p6: {element_size_ratio: 0.5, degree: 6, quadrature_order: 16}
+    h0p25_p2: {element_size_ratio: 0.25, degree: 2, quadrature_order: 12}
+    h0p25_p3: {element_size_ratio: 0.25, degree: 3, quadrature_order: 12}
+    h0p25_p4: {element_size_ratio: 0.25, degree: 4, quadrature_order: 12}
+  benchmark_families: [homogeneous, glass_air_interface]
+  candidate_selection:
+    require_both_families: true
+    sort_by: [estimated_full_tgv_active_unknowns, degree, element_size_ratio]
+    analytic_truth_alignment: none
+
+full_tgv_projection:
+  radial_extent_m: 6.2e-5
+  z_min_m: -4.0e-6
+  z_max_m: 1.04e-4
+  formal_element_size_m: 5.0e-7
+  direct_lu_maximum_unknowns: 1000000
+  direct_lu_maximum_predicted_peak_gib: 10.0
+  execution_enabled: false
+  next_step_requires_solver_resource_preflight: true
+
+conditional_execution:
+  reuse_r12_cartesian_checkpoint_only: true
+  rerun_cartesian: false
+  rerun_r12: false
+  scalar_cross_model_enabled: false
+  vector_model_enabled: false
+
+thresholds:
+  solve_relative_residual_max: 1.0e-10
+  pml_incoming_to_outgoing_ratio_max: 1.0e-3
+  pml_outgoing_impedance_residual_max: 1.0e-3
+  pml_dense_field_relative_l2_max: 1.0e-3
+  pml_flux_relative_range_max: 5.0e-3
+  pml_pair_dense_field_relative_l2_max: 1.0e-3
+  physical_k_family_weighted_relative_l2_max: 1.0e-2
+  require_all_finite: true
+
+output:
+  hdf5_filename: exp040_r13.h5
+  figure_filenames:
+    - r13_domain_reflection.png
+    - r13_physical_k_pollution.png
+    - r13_candidate_resource.png
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - run_progress.json
+    - outputs/exp040_r13.h5
+    - figures/r13_domain_reflection.png
+    - figures/r13_physical_k_pollution.png
+    - figures/r13_candidate_resource.png

@@ -1,0 +1,67 @@
+run:
+  name: exp040_TGV_3d_multislice_r14_preflight
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R14_preflight
+  scientific_result: false
+  description: Non-scientific iterative-solver algebra, low-k, axial-PML, and resource preflight.
+
+provenance:
+  r13_run: runs/exp040_TGV_3d_multislice_r13_20260817_150406
+  r13_metrics_sha256: E79206316739EA3535047316E57E0592AA8F1A5FC51E799BD7694904DFE01382
+  r13_hdf5_sha256: C993DAAED6A935BD132D7C6B3572E63241E76E6FC02BFF80733CC2909F3607A0
+
+formal_contract:
+  config_path: configs/experiments/exp040_TGV_3d_multislice_r14.yaml
+  scientific_contract_sha256: 269AA8FA68EB7795B2A5EB73D3F4A23B5C2C2E90382CE6613EE78253A043E2DB
+
+backend_controls:
+  required_backend: scipy
+  require_no_pyamg: true
+  require_no_petsc4py: true
+  require_no_pypardiso: true
+  full_shifted_lu_preconditioner_forbidden: true
+  gpu_required: false
+
+algebra_controls:
+  random_seed: 40014
+  low_k_operator_wavenumber: 4.0
+  low_k_element_size: 0.5
+  low_k_degree: 2
+  low_k_core_extent: 4.0
+  low_k_pml_thickness: 1.0
+  low_k_pml_polynomial_order: 3
+  low_k_pml_target_one_way_amplitude: 1.0e-6
+  low_k_interface_fraction: 0.4325
+  low_k_target_radial_modal_wavenumber: 2.0
+  low_k_target_axial_modal_wavenumber: 2.0
+  low_k_shift_imaginary: 0.5
+  low_k_gmres_restart: 20
+  low_k_gmres_maximum_inner_iterations: 100
+  low_k_ras_core_block_shape_nodes: [16, 16]
+  low_k_ras_overlap_nodes: 2
+
+resource_controls:
+  maximum_formal_active_unknowns: 274040
+  maximum_preflight_peak_gib: 2.0
+  minimum_free_disk_gib: 15.0
+  full_tgv_execution_enabled: false
+  formal_cartesian_execution_enabled: false
+
+thresholds:
+  low_k_true_relative_residual_max: 1.0e-8
+  low_k_direct_agreement_relative_l2_max: 1.0e-6
+  linear_operator_repeat_relative_l2_max: 1.0e-13
+  axial_pml_incoming_ratio_max: 1.0e-3
+  require_all_finite: true
+
+output:
+  hdf5_filename: exp040_r14_preflight.h5
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - outputs/exp040_r14_preflight.h5

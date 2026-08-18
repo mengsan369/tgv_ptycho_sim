@@ -1,0 +1,171 @@
+run:
+  name: exp040_TGV_3d_multislice_r11
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R11
+  scientific_result: true
+  description: Pre-registered radial-domain, ADC5 mesh, and Cartesian angular closure.
+
+provenance:
+  r10_stage_b_run: runs/exp040_TGV_3d_multislice_r10_stage_b_20260815_181819
+  r10_metrics_sha256: 60DAE2C59FB89EA2D201D53C105BCEAF98A6F36D163D9401146058F0F27DB11A
+  r10_q8_checkpoint_sha256: 5D75B300BAE6B3F0A5202A55AE99942C094D1C6267E0C3B68139E00B42824C9D
+  r10_repaired_hdf5_sha256: B986E62B0B79F15CD8B2FBD646A7CF844C6A2E1FF7952454BE50A78B85281AF9
+  preflight_run: runs/exp040_TGV_3d_multislice_r11_preflight_20260815_193925
+  preflight_source_config_sha256: 2FEAA121E7B6EA4F2B3F3BC0AC3C2843891AC31214FBF2156FD369D072252CF4
+  preflight_metrics_sha256: D9D2F82D1B808281243A8966614B1E8FF4B9D179B3899C59BCCA105BD3F2BB58
+  preflight_original_run_state_sha256: 77C5EB4CF748655FA3FBD5C36570BD4F437ED242E7D3DAE7C5E0982DA39E872B
+  preflight_hdf5_relative_path: outputs/exp040_r11_preflight_repaired.h5
+  preflight_hdf5_sha256: EC62F5DB2EAD550E17E48C802FEA2BDC7E49DA5BECCD2E4FDA067A2ED513226B
+  preflight_repair_manifest_sha256: C7376AF4647CE1BA8AA7D30649970DED266370CD4918971CF58C0117D5397E85
+
+physics:
+  wavelength_m: 5.32e-7
+  n_glass: 1.5
+  n_air: 1.0
+  background_interface_z_m: 1.0e-4
+  incident_amplitude: 1.0
+  sample_thickness_m: 1.0e-4
+  d_top_m: 3.0e-5
+  d_waist_m: 2.0e-5
+  d_bottom_m: 3.0e-5
+  z_waist_m: 5.0e-5
+
+helmholtz:
+  formulation: axisymmetric_scattered_field_contrast_source
+  z_core_min_m: -2.0e-6
+  z_core_max_m: 1.02e-4
+  pml_thickness_m: 2.0e-6
+  axial_material_subnodes: 8
+  radial_material_rule: exact_annular_disk_intersection
+  physical_mass_material_rule: cell_average_n_squared
+  formal_discretization: adc5_shifted_wavenumber_conservative_five_point
+  report_discretization: standard_conservative_five_point
+  fixed_case_order:
+    - adc_fine_core24
+    - adc_fine_core36
+    - adc_fine_core48
+    - adc_coarse_core48
+    - standard_coarse_core48
+    - standard_fine_core48
+  cases:
+    adc_fine_core24: {method: adc5, radial_core_max_m: 2.4e-5, dr_m: 8.333333333333333e-8, dz_m: 8.333333333333333e-8, expected_nr: 312, expected_nz: 1296, expected_unknowns: 404352}
+    adc_fine_core36: {method: adc5, radial_core_max_m: 3.6e-5, dr_m: 8.333333333333333e-8, dz_m: 8.333333333333333e-8, expected_nr: 456, expected_nz: 1296, expected_unknowns: 590976}
+    adc_fine_core48: {method: adc5, radial_core_max_m: 4.8e-5, dr_m: 8.333333333333333e-8, dz_m: 8.333333333333333e-8, expected_nr: 600, expected_nz: 1296, expected_unknowns: 777600}
+    adc_coarse_core48: {method: adc5, radial_core_max_m: 4.8e-5, dr_m: 1.25e-7, dz_m: 1.25e-7, expected_nr: 400, expected_nz: 864, expected_unknowns: 345600}
+    standard_coarse_core48: {method: standard, radial_core_max_m: 4.8e-5, dr_m: 1.25e-7, dz_m: 1.25e-7, expected_nr: 400, expected_nz: 864, expected_unknowns: 345600}
+    standard_fine_core48: {method: standard, radial_core_max_m: 4.8e-5, dr_m: 8.333333333333333e-8, dz_m: 8.333333333333333e-8, expected_nr: 600, expected_nz: 1296, expected_unknowns: 777600}
+  adc5:
+    formula: midpoint_of_axis_and_diagonal_five_point_symbols
+    apply_to: mass_and_contrast_source
+    posthoc_method_selection: false
+  pml:
+    coordinate_stretch: cylindrical_complex_coordinate
+    polynomial_order: 3
+    target_one_way_amplitude: 1.0e-8
+    outer_boundary: scattered_field_zero_dirichlet_at_half_cell_distance
+  solver:
+    package: scipy_splu
+    sparse_format: csc
+    permc_spec: COLAMD
+    retain_one_matrix_and_lu_at_a_time: true
+
+observation:
+  z_m: 1.01e-4
+  axial_extraction: linear_between_bracketing_cell_centers
+  normalization: total_field_divided_by_analytic_background
+  phase_scale_shift_tilt_alignment: false
+
+multislice:
+  fixed_case_order: [chord512, chord1024]
+  cases:
+    chord512: {shape: [512, 512], dx_m: 1.25e-7, expected_slice_count: 400}
+    chord1024: {shape: [1024, 1024], dx_m: 6.25e-8, expected_slice_count: 400}
+  dz_m: 2.5e-7
+  interface_rule: analytic_chord_gauss_legendre_cell_average
+  interface_order: 64
+  effective_index_rule: linear_cell_average_of_index
+  propagation_operator: centered_symmetric_split_step
+  internal_reference_index: 1.5
+  internal_bandlimit: true
+  post_exit_air_distance_m: 1.0e-6
+  post_exit_air_bandlimit: true
+
+comparison:
+  cartesian_shape: [512, 512]
+  cartesian_dx_m: 1.25e-7
+  physical_passband_cutoff_cycles_per_m: 1879699.2481203007
+  passband_boundary_inclusive: true
+  annular_bin_width_m: 1.25e-7
+  annular_maximum_radius_m: 2.0e-5
+  weighted_norm: two_pi_r_relative_l2
+  domain_pairs: [[adc_fine_core24, adc_fine_core36], [adc_fine_core36, adc_fine_core48]]
+  domain_gate_pair: [adc_fine_core36, adc_fine_core48]
+  adc5_mesh_pair: [adc_coarse_core48, adc_fine_core48]
+  standard_mesh_pair: [standard_coarse_core48, standard_fine_core48]
+  method_pair: [standard_fine_core48, adc_fine_core48]
+  final_helmholtz_reference: adc_fine_core48
+  comparison_max_radius_m: 2.0e-5
+  guard_width_m: 2.0e-6
+  outer_fill_normalized_value: 1.0
+  multislice_order: native_passband_then_aligned_2x2_cell_average
+  q8_checkpoint_id: multislice_fine_1024
+  chord_lateral_pair: [chord512, chord1024]
+  final_multislice_reference: chord1024
+  phase_scale_shift_tilt_alignment: false
+
+anisotropy:
+  radius_count: 160
+  radius_spacing_m: 1.25e-7
+  theta_count: 720
+  interpolation_order: 3
+  harmonics: [4, 8]
+  legacy_annular_reproduction_target: 0.09549961270718764
+  legacy_reproduction_absolute_tolerance: 1.0e-12
+
+thresholds:
+  solve_relative_residual_max: 1.0e-9
+  algebra_absolute_or_relative_max: 1.0e-12
+  postprocessing_determinism_relative_l2_max: 1.0e-14
+  domain_passband_relative_l2_max: 5.0e-2
+  outer_guard_rms_ratio_max: 5.0e-2
+  mesh_passband_relative_l2_max: 5.0e-2
+  polar_angular_relative_l2_max: 5.0e-2
+  restriction_angular_increase_max: 5.0e-2
+  lateral_passband_relative_l2_max: 5.0e-2
+  cross_model_materiality_relative_l2: 5.0e-2
+  require_all_finite: true
+
+conditional_execution:
+  cross_model_requires: [domain_gate_pass, adc5_mesh_gate_pass, cartesian_anisotropy_gate_pass]
+  vector_model_enabled: false
+
+output:
+  hdf5_filename: exp040_r11.h5
+  figure_filenames:
+    - r11_domain_mesh_controls.png
+    - r11_anisotropy_attribution.png
+    - r11_conditional_cross_model.png
+  save_sparse_matrices: false
+  save_full_rz_fields: false
+  save_slice_volumes: false
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - run_progress.json
+    - checkpoints/adc_fine_core24.npz
+    - checkpoints/adc_fine_core36.npz
+    - checkpoints/adc_fine_core48.npz
+    - checkpoints/adc_coarse_core48.npz
+    - checkpoints/standard_coarse_core48.npz
+    - checkpoints/standard_fine_core48.npz
+    - checkpoints/chord512.npz
+    - checkpoints/chord1024.npz
+    - outputs/exp040_r11.h5
+    - figures/r11_domain_mesh_controls.png
+    - figures/r11_anisotropy_attribution.png
+    - figures/r11_conditional_cross_model.png

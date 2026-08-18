@@ -1,0 +1,56 @@
+run:
+  name: exp040_TGV_3d_multislice_r13_preflight
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R13_preflight
+  scientific_result: false
+  description: Non-scientific outgoing-wave algebra, low-k FEM, contract, and resource preflight.
+
+provenance:
+  r12_run: runs/exp040_TGV_3d_multislice_r12_20260817_141417
+  r12_metrics_sha256: 50BFDE52D50092D2EBEB97B0BC7DAA7DE442FE0E21EA165461CB084CB973604E
+  r12_hdf5_sha256: 4FA90ABF2925129DC6DC184BED4540DA162C3213B37FF0755C8FAC6C0593AC98
+  r12_cartesian_checkpoint_sha256: A35D9B8FC58AC2298444FCC67D9D8155001F4FBB24A2191396213654DF0AB528
+
+formal_contract:
+  config_path: configs/experiments/exp040_TGV_3d_multislice_r13.yaml
+  scientific_contract_sha256: B37A16F0E6D4F91B498BE4240C2D83A8CA727259A6A38B2B35FEB25EEF51EBB0
+
+algebra_controls:
+  cylindrical_wavenumber: 12.0
+  inner_radius: 1.0
+  sample_radii: [1.25, 1.75, 2.25]
+  synthetic_outgoing_coefficient: [0.8, 0.3]
+  synthetic_incoming_coefficient: [-0.04, 0.02]
+  low_k_modal_wavenumber: 4.0
+  low_k_element_size: 0.25
+  low_k_domain_extent: 4.0
+  low_k_radial_mode: 2
+  low_k_axial_mode: 2
+  low_k_degrees: [2, 4]
+  quadrature_order: 12
+
+resource_controls:
+  maximum_formal_benchmark_unknowns: 5000
+  minimum_free_disk_gib: 10.0
+  formal_tgv_execution_enabled: false
+  cartesian_execution_enabled: false
+
+thresholds:
+  decomposition_relative_error_max: 1.0e-11
+  derivative_relative_error_max: 1.0e-10
+  low_k_p4_weighted_relative_l2_max: 1.0e-3
+  low_k_p4_to_p2_error_ratio_max: 0.25
+  solve_relative_residual_max: 1.0e-10
+  require_all_finite: true
+
+output:
+  hdf5_filename: exp040_r13_preflight.h5
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - outputs/exp040_r13_preflight.h5

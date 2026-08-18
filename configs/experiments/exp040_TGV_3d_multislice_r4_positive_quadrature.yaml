@@ -1,0 +1,341 @@
+run:
+  name: exp040_TGV_3d_multislice_r4_positive_quadrature
+  output_root: runs
+
+experiment:
+  id: exp040
+  phase: Phase 4
+  status: Inconclusive
+  description: Pre-registered exp040 R4 positivity-preserving staggered detector quadrature.
+
+optics:
+  wavelength_m: 5.32e-7
+  internal_reference_index: 1.5
+  external_medium_index: 1.0
+  baseline_shape: [128, 128]
+  baseline_dx_m: 5.0e-7
+  z_AB_m: 5.0e-4
+  z_BC_m: 1.0e-3
+  angular_spectrum_bandlimit: true
+  detector:
+    pixel_size_m: 5.0e-7
+    model: grid_sampled_intensity
+    pixel_integration: false
+
+illumination:
+  type: plane_wave
+  amplitude: 1.0
+  theta_x_rad: 0.0
+  theta_y_rad: 0.0
+  seed: null
+
+sample_a:
+  type: single_axisymmetric_air_filled_tgv_in_glass
+  center_xy_m: [0.0, 0.0]
+  thickness_m: 1.0e-4
+  d_top_m: 3.0e-5
+  d_waist_m: 2.0e-5
+  d_bottom_m: 3.0e-5
+  z_waist_m: 5.0e-5
+  n_glass: 1.5
+  n_air: 1.0
+  voxelization: voxel_center_binary
+
+multislice:
+  operator: centered_symmetric_split_step
+  slice_location: center_plane
+  returned_field_plane: sample_a_exit_boundary
+  target_dz_m: 1.0e-6
+  use_true_slice_widths: true
+  propagate_between_slices: true
+  store_slice_fields: false
+
+sample_b:
+  type: random_phase
+  phase_range_rad: 0.8
+  physical_feature_size_m: 2.0e-6
+  seed: 20260840
+  canonical_grid:
+    shape: [384, 384]
+    dx_m: 2.5e-7
+    fov_m: [9.6e-5, 9.6e-5]
+  case_mapping: centered_crop_then_aligned_point_sampling
+  same_physical_realization_for_all_cases: true
+  object_boundary: periodic
+
+scan:
+  type: jittered_grid
+  num_x: 5
+  num_y: 5
+  step_m: 4.0e-6
+  center: true
+  integer_pixel_shifts_only: true
+  max_jitter_px: 1
+  jitter_quantum_m: 1.0e-6
+  jitter_seed: 20260841
+  same_positions_for_all_cases: true
+
+waist_perturbation:
+  delta_d_waist_m: 2.0e-6
+  case_ids: [waist_minus, baseline, waist_plus]
+  d_waist_m: [1.8e-5, 2.0e-5, 2.2e-5]
+  shared_incident_field: true
+  shared_sample_b: true
+  shared_scan: true
+  shared_detector_model: true
+
+convergence:
+  comparison_mapping: centered_bilinear_interpolation_diagnostic_only
+  comparison_mapping_is_detector_model: false
+  axial:
+    fixed_shape: [128, 128]
+    fixed_dx_m: 5.0e-7
+    dz_cases_m: [2.0e-6, 1.0e-6, 5.0e-7]
+    acceptance_pair_m: [1.0e-6, 5.0e-7]
+  lateral_fixed_fov:
+    fov_m: [6.4e-5, 6.4e-5]
+    cases:
+      - shape: [64, 64]
+        dx_m: 1.0e-6
+      - shape: [128, 128]
+        dx_m: 5.0e-7
+      - shape: [256, 256]
+        dx_m: 2.5e-7
+    acceptance_pair_dx_m: [5.0e-7, 2.5e-7]
+    comparison_grid_shape: [128, 128]
+    comparison_grid_dx_m: 5.0e-7
+  fov:
+    fixed_dx_m: 5.0e-7
+    shapes: [[128, 128], [160, 160], [192, 192]]
+    common_center_roi_shape: [128, 128]
+    common_center_roi_fov_m: [6.4e-5, 6.4e-5]
+    acceptance_pair_shapes: [[160, 160], [192, 192]]
+
+diagnostics_r1:
+  enabled: false
+  version: R1
+  scientific_role: diagnostic_extension_without_rewriting_r0
+  preserve_r0_metrics_and_status: true
+  methods:
+    lateral_b_mapping: same_seed_piecewise_constant_fine_grid
+    fov_b_extension: centered_periodic_extension_of_base_96um
+    external_field_padding: homogeneous_reference_plus_zero_padded_scattered_residual
+    comparison_mapping: centered_bilinear_complex_field_diagnostic_only
+  sample_b_refinement:
+    base_grid:
+      shape: [768, 768]
+      dx_m: 1.25e-7
+      fov_m: [9.6e-5, 9.6e-5]
+      coarse_phase_cell_shape: [48, 48]
+    working_grid:
+      shape: [1024, 1024]
+      dx_m: 1.25e-7
+      fov_m: [1.28e-4, 1.28e-4]
+    extension: centered_periodic_tile_of_base_96um
+    extension_each_side_px: [128, 128]
+    same_seed_as_r0: true
+    r0_mapping_max_complex_error: 1.0e-12
+  refined_axial:
+    existing_reference_dz_m: 5.0e-7
+    new_dz_m: 2.5e-7
+    acceptance_pair_m: [5.0e-7, 2.5e-7]
+  refined_lateral:
+    fixed_fov_m: [6.4e-5, 6.4e-5]
+    existing_reference:
+      shape: [256, 256]
+      dx_m: 2.5e-7
+    new_case:
+      shape: [512, 512]
+      dx_m: 1.25e-7
+    acceptance_pair_dx_m: [2.5e-7, 1.25e-7]
+    comparison_grid_shape: [256, 256]
+    comparison_grid_dx_m: 2.5e-7
+  refined_fov:
+    fixed_dx_m: 5.0e-7
+    existing_shapes: [[128, 128], [160, 160], [192, 192]]
+    new_shapes: [[224, 224], [256, 256]]
+    common_center_roi_shape: [128, 128]
+    acceptance_pair_shapes: [[224, 224], [256, 256]]
+  external_padding:
+    source_shape: [128, 128]
+    fixed_dx_m: 5.0e-7
+    padded_shapes: [[128, 128], [160, 160], [192, 192], [224, 224], [256, 256]]
+    common_center_roi_shape: [128, 128]
+    acceptance_pair_shapes: [[224, 224], [256, 256]]
+    edge_ring_width_m: 4.0e-6
+    require_a_exit_center_invariance_max: 1.0e-12
+    direct_full_field_zero_padding_allowed: false
+  thresholds:
+    reuse_acceptance_convergence_relative_l2_max: true
+    reuse_acceptance_detector_visibility_signal_to_floor_min: true
+    reuse_acceptance_determinism_relative_l2_max: true
+
+diagnostics_r2:
+  enabled: false
+  version: R2
+  scientific_role: separate_period_commensurability_from_transfer_sampling_alias
+  preserve_r0_r1_metrics_and_status: true
+  methods:
+    period_boundary: same_96um_canonical_period_centered_wrap_extension
+    a_exit_padding: homogeneous_reference_plus_zero_padded_scattered_residual
+    current_asm: evanescent_only_same_grid_circular
+    alias_controlled_asm: matsushima_exact_common_ellipse_same_grid
+    comparison: unaligned_common_center_roi_relative_l2
+  period_commensurate:
+    fixed_dx_m: 5.0e-7
+    fov_m: [9.6e-5, 1.92e-4, 2.88e-4]
+    shapes: [[192, 192], [384, 384], [576, 576]]
+    period_counts: [1, 2, 3]
+    base_period_shape: [192, 192]
+    common_center_roi_shape: [128, 128]
+    acceptance_pair_shapes: [[384, 384], [576, 576]]
+    require_a_exit_center_invariance_max: 1.0e-12
+    canonical_b_mapping_max_complex_error: 1.0e-12
+  alias_control:
+    apply_to_stages: [AB, BC]
+    exact_common_ellipse: true
+    same_periodic_grid: true
+    rectangular_approximation: false
+    linear_convolution_padding: false
+    apply_inside_sample_a: false
+  determinism:
+    repeat_largest_alias_controlled_case: true
+  thresholds:
+    reuse_acceptance_convergence_relative_l2_max: true
+    reuse_r1_a_exit_center_invariance_max: true
+    reuse_r1_canonical_b_mapping_max_complex_error: true
+    reuse_acceptance_determinism_relative_l2_max: true
+
+diagnostics_r3:
+  enabled: false
+  version: R3
+  scientific_role: separate_b_exit_bc_propagation_and_detector_sampling
+  preserve_r0_r1_r2_metrics_and_status: true
+  methods:
+    external_fov: two_period_192um_periodic_grid
+    a_exit_mapping: aligned_bilinear_residual_plus_homogeneous_reference
+    canonical_b: same_phase_cells_piecewise_constant_refinement
+    ab_propagation: matsushima_exact_common_ellipse_same_grid
+    bc_current_asm: evanescent_only_same_grid_circular
+    bc_alias_controlled_asm: matsushima_exact_common_ellipse_same_grid
+    point_detector: aligned_native_center_point_sample
+    pixel_detector: periodic_square_pixel_sinc_mtf_area_average
+    comparison: unaligned_native_roi_relative_l2
+  sampling:
+    external_fov_m: [1.92e-4, 1.92e-4]
+    factors: [1, 2, 4]
+    dx_m: [5.0e-7, 2.5e-7, 1.25e-7]
+    shapes: [[384, 384], [768, 768], [1536, 1536]]
+    native_full_shape: [384, 384]
+    native_roi_shape: [128, 128]
+    acceptance_pair_factors: [2, 4]
+    canonical_period_count: 2
+    native_sample_offsets_px: [0, 0, 1]
+    physical_origin_compensation_m: [0.0, 1.25e-7, 6.25e-8]
+  propagation:
+    ab_alias_control: true
+    bc_methods: [current_asm, alias_controlled]
+    no_apodization_or_window: true
+    stream_scans: true
+    retain_full_detector_stack: false
+  detector_sampling:
+    branches: [point_sample, pixel_box_average]
+    primary_bc_method: alias_controlled
+    primary_detector_branch: pixel_box_average
+    pixel_response: ideal_square_sinc_mtf
+    selected_factor: 4
+    selected_scan_index: 0
+  determinism:
+    repeat_selected_factor_primary_scan: true
+  thresholds:
+    reuse_acceptance_convergence_relative_l2_max: true
+    reuse_acceptance_algebra_relative_l2_max_for_mapping_and_pixel: true
+    reuse_acceptance_determinism_relative_l2_max: true
+
+diagnostics_r4:
+  enabled: true
+  version: R4
+  scientific_role: positivity_preserving_detector_quadrature_convergence
+  methods:
+    quadrature: staggered_midpoint_uniform_positive_weights
+    a_exit_mapping: centered_bilinear_residual_plus_homogeneous_reference
+    canonical_b: same_48x48_phase_cells_piecewise_constant_nodes
+    ab_propagation: matsushima_exact_common_ellipse_same_grid
+    bc_propagation: matsushima_exact_common_ellipse_same_grid
+    comparison: unaligned_native_128_roi_relative_l2
+  r3_provenance:
+    run: runs/exp040_TGV_3d_multislice_r3_detector_path_20260811_153852
+    config_sha256: 4B17ADD64B0633540322EA416B4C9E23BB7720A85774A8F48BA7CA95A085B4B6
+    metrics_sha256: 85BE9131F9797B6837DCFD341834F6876633403B624D1CEB4B080183E2ACF9BE
+    status: Failed
+    alias_pixel_factor2_to4_relative_l2: 0.022648734882925837
+    pixel_mtf_negative_relative_scale: 0.001089144469713379
+  sampling:
+    external_fov_m: [1.92e-4, 1.92e-4]
+    factors: [2, 4, 8]
+    node_dx_m: [2.5e-7, 1.25e-7, 6.25e-8]
+    node_shapes: [[768, 768], [1536, 1536], [3072, 3072]]
+    native_full_shape: [384, 384]
+    native_roi_shape: [128, 128]
+    acceptance_pair_factors: [4, 8]
+  propagation:
+    ab_alias_control: true
+    bc_alias_control: true
+    stream_scans: true
+    retain_full_node_stacks: false
+  quadrature:
+    node_rule: pixel_center_plus_a_half_over_q
+    weights: uniform_nonnegative
+    block_average_axes: [subpixel_y, subpixel_x]
+  determinism:
+    selected_factor: 8
+    selected_scan_index: 0
+  thresholds:
+    reuse_acceptance_convergence_relative_l2_max: true
+    reuse_acceptance_algebra_relative_l2_max: true
+    reuse_acceptance_determinism_relative_l2_max: true
+
+controls:
+  geometry: true
+  zero_contrast: true
+  single_slice: true
+  no_internal_propagation: true
+  projected_phase_product: true
+  axial_convergence: true
+  lateral_convergence: true
+  fov_convergence: true
+  end_to_end_detector: true
+  waist_visibility: true
+  determinism_and_finite: true
+
+acceptance:
+  geometry_thickness_absolute_tolerance_m:
+    fixed_floor_m: 1.0e-15
+    floating_point_factor: 16.0
+    rule: max(fixed_floor_m, floating_point_factor * eps_float64 * thickness_m)
+  algebra_relative_l2_max: 1.0e-12
+  zero_contrast_relative_l2_max: 1.0e-12
+  single_slice_relative_l2_max: 1.0e-12
+  projected_phase_product_relative_l2_max: 1.0e-12
+  determinism_relative_l2_max: 1.0e-14
+  convergence_relative_l2_max: 5.0e-2
+  convergence_outputs: [U_A_exit, P_B, I_stack]
+  require_all_finite: true
+  detector_visibility_signal_to_floor_min: 3.0
+  detector_floor_components: [axial, lateral, fov]
+  detector_visibility_rule: min(waist_minus_signal, waist_plus_signal) / max(axial_floor, lateral_floor, fov_floor, eps_float64)
+  report_only_signal_to_floor_outputs: [U_A_exit, P_B]
+  status_logic:
+    failed: any_hard_control_failure
+    inconclusive: hard_controls_pass_but_any_convergence_or_detector_visibility_gate_fails
+    passed: all_hard_controls_convergence_and_detector_visibility_gates_pass
+
+output:
+  save_hdf5: true
+  save_png: true
+  save_slice_fields: false
+  save_r1_figures: false
+  save_r2_figures: false
+  save_r3_figures: false
+  save_r4_figures: true
+  hdf5_filename: exp040_multislice_r4_positive_quadrature.h5

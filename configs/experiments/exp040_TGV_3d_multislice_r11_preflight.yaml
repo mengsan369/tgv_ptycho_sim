@@ -1,0 +1,90 @@
+run:
+  name: exp040_TGV_3d_multislice_r11_preflight
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R11_preflight
+  scientific_result: false
+  description: Non-scientific resource, geometry, ADC5, polar, and artifact preflight.
+
+provenance:
+  r10_stage_b_run: runs/exp040_TGV_3d_multislice_r10_stage_b_20260815_181819
+  r10_metrics_sha256: 60DAE2C59FB89EA2D201D53C105BCEAF98A6F36D163D9401146058F0F27DB11A
+  r10_q8_checkpoint_sha256: 5D75B300BAE6B3F0A5202A55AE99942C094D1C6267E0C3B68139E00B42824C9D
+  r10_repaired_hdf5_sha256: B986E62B0B79F15CD8B2FBD646A7CF844C6A2E1FF7952454BE50A78B85281AF9
+
+physics:
+  wavelength_m: 5.32e-7
+  n_glass: 1.5
+  n_air: 1.0
+  interface_z_m: 1.0e-4
+
+formal_grids:
+  z_core_min_m: -2.0e-6
+  z_core_max_m: 1.02e-4
+  pml_thickness_m: 2.0e-6
+  cases:
+    - {id: core24_fine, radial_core_max_m: 2.4e-5, h_m: 8.333333333333333e-8, expected_nr: 312, expected_nz: 1296, expected_unknowns: 404352}
+    - {id: core36_fine, radial_core_max_m: 3.6e-5, h_m: 8.333333333333333e-8, expected_nr: 456, expected_nz: 1296, expected_unknowns: 590976}
+    - {id: core48_coarse, radial_core_max_m: 4.8e-5, h_m: 1.25e-7, expected_nr: 400, expected_nz: 864, expected_unknowns: 345600}
+    - {id: core48_fine, radial_core_max_m: 4.8e-5, h_m: 8.333333333333333e-8, expected_nr: 600, expected_nz: 1296, expected_unknowns: 777600}
+
+resource_model:
+  reference_unknowns: 404352
+  reference_peak_rss_bytes: 2684706816
+  reference_factor_solve_s: 7.499216799998976
+  scaling_exponent: 1.5
+  total_physical_memory_gib_min: 12.0
+  estimated_peak_fraction_of_total_max: 0.55
+  disk_free_gib_min: 20.0
+
+probe_grid:
+  dr_m: 2.5e-7
+  dz_m: 2.5e-7
+  radial_core_max_m: 4.0e-6
+  z_core_min_m: -1.0e-6
+  z_core_max_m: 3.0e-6
+  pml_thickness_m: 1.0e-6
+  expected_nr: 20
+  expected_nz: 24
+  expected_unknowns: 480
+  interface_z_m: 2.0e-6
+  pml_polynomial_order: 3
+  pml_target_one_way_amplitude: 1.0e-8
+  solver_permc_spec: COLAMD
+
+geometry_control:
+  shapes: [[512, 512], [1024, 1024]]
+  dx_m: [1.25e-7, 6.25e-8]
+  diameters_m: [2.0e-5, 2.5e-5, 3.0e-5]
+  formal_order: 64
+  validation_order: 128
+
+polar_control:
+  radius_count: 160
+  radius_spacing_m: 1.25e-7
+  theta_count: 720
+  interpolation_order: 3
+  radial_test_frequency_cycles_per_m: 1879699.2481203007
+  shapes: [[512, 512], [1024, 1024]]
+  dx_m: [1.25e-7, 6.25e-8]
+
+thresholds:
+  solve_relative_residual_max: 1.0e-9
+  manufactured_recovery_relative_l2_max: 1.0e-8
+  algebra_absolute_or_relative_max: 1.0e-12
+  geometry_order_relative_l2_max: 1.0e-5
+  geometry_area_relative_error_max: 1.0e-5
+  polar_manufactured_angular_relative_l2_max: 1.0e-2
+  require_all_finite: true
+
+output:
+  hdf5_filename: exp040_r11_preflight.h5
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - run_progress.json
+    - outputs/exp040_r11_preflight.h5

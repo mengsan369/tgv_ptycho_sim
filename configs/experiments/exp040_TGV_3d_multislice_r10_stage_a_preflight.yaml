@@ -1,0 +1,71 @@
+run:
+  name: exp040_TGV_3d_multislice_r10_stage_a_preflight
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R10_stage_a_preflight
+  scientific_result: false
+  description: Non-scientific runtime and memory feasibility preflight for the pre-registered R10 Stage A workload.
+
+provenance:
+  r9_run: runs/exp040_TGV_3d_multislice_r9_a_exit_attribution_20260814_184026
+  r9_progress_sha256: F083A10481EF028D55DD53635D9A503442898753A3852487E7081AB929CDF476
+  observed_512_full_case_elapsed_s: 81.738972
+
+physics:
+  wavelength_m: 5.32e-7
+  internal_reference_index: 1.5
+  angular_spectrum_bandlimit: true
+  illumination_amplitude: 1.0
+  illumination_theta_x_rad: 0.0
+  illumination_theta_y_rad: 0.0
+  sample_thickness_m: 1.0e-4
+  d_top_m: 3.0e-5
+  d_waist_m: 2.0e-5
+  d_bottom_m: 3.0e-5
+  z_waist_m: 5.0e-5
+  center_xy_m: [0.0, 0.0]
+  n_glass: 1.5
+  n_air: 1.0
+
+benchmark:
+  kernel: r7_streamed_tgv_exit
+  interface_factor: 8
+  dz_m: 2.5e-7
+  representative_z_rule: equal_stratum_midpoints_full_thickness
+  timed_slice_count: 16
+  warmup_slice_count: 1
+  timed_repeats: 3
+  fixed_case_order: [current_512, fine_1024]
+  cases:
+    - id: current_512
+      shape: [512, 512]
+      dx_m: 1.25e-7
+      formal_slice_count: 400
+    - id: fine_1024
+      shape: [1024, 1024]
+      dx_m: 6.25e-8
+      formal_slice_count: 400
+  stream_slices: true
+  retain_full_volumes: false
+  recompute_detector_path: false
+  save_fields: false
+  rss_sampling_interval_s: 0.02
+  runtime_statistic: median_seconds_per_slice
+  full_case_projection: median_seconds_per_slice_times_formal_slice_count
+
+feasibility:
+  determinism_relative_l2_max: 1.0e-14
+  calibration_relative_error_max: 0.25
+  safety_factor: 1.5
+  safety_adjusted_stage_a_wall_s_max: 900.0
+  sampled_peak_rss_over_available_max: 0.5
+  require_zero_interface_bound_errors: true
+  require_all_finite: true
+
+output:
+  save_hdf5: false
+  save_png: false
+  save_fields: false
+  allowed_files: [config.yaml, metadata.json, metrics.json, run_state.json]

@@ -24,6 +24,14 @@
 
 生成轴对称 refractive-index volume，并用 multi-slice propagation 逐层传播。
 
+状态：`exp040_TGV_3d_multislice_forward` 已完成从 R0 baseline 到 R14B 的分阶段 forward、数值边界和
+reference-validation 诊断。自 2026-08-17 起工作状态为 `Frozen / Paused`，整体科学状态仍为
+`Inconclusive`。最新 R14B formal 状态为 `Failed / r14_no_scalable_scipy_solver`；当前保持
+`reference_validated=false`、`full_tgv_reference_authorized=false`，不得把同模型 self-consistency
+提升为真实三维电磁物理准确性。近期优先启动 exp050 复原研究，恢复更高级物理验证前须重新定义研究问题、
+reference 身份、solver 路线和验收门槛。详见
+`docs/experiment_design/exp040_TGV_3d_multislice_forward.md`。
+
 ## Phase 5: waist observability and parametric fitting
 
 从 recovered probe 或 simulated probe signature 中拟合 `D(z)` 或低维 TGV shape parameters，估计 `D_waist`。
