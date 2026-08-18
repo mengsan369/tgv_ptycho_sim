@@ -1,0 +1,41 @@
+run:
+  name: exp040_TGV_3d_multislice_r14b_release
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R14B_release
+  scientific_result: false
+  description: Provenance-only release lock for the R14B solver formal run.
+
+provenance:
+  initial_preflight_run: runs/exp040_TGV_3d_multislice_r14_preflight_20260817_161959
+  initial_preflight_metrics_sha256: BC516A9A0428C7696A1E49D6CD175514D41D12E3DB3E97A0B1D53BB7F1366879
+  initial_preflight_hdf5_sha256: DFC6B68547DD9A2FCEC3DEF1CA8E676626B09DBD653C3C8339BC37E248D58C1B
+  r14a_run: runs/exp040_TGV_3d_multislice_r14a_20260817_163038
+  r14a_metrics_sha256: E6984C5094249BCBC5FE500101E17DE0125F6270D512ED9A127819DA52DCE53C
+  r14a_hdf5_sha256: 7D1A8787140C58C3E2160241A6F5904B1038E23A8D9A6CFEFC814C5D048EC91D
+  r14a_checkpoint_sha256: AA1EE4AE49781F323B4E0D3F87B2C7FA8ABF7E02CCD05E4566D9DA709B4ACBAE
+
+formal_contract:
+  config_path: configs/experiments/exp040_TGV_3d_multislice_r14b.yaml
+  scientific_contract_sha256: F4247CC4298E61092363AD7FAD65016820088608D9A5FF42009ACEB50F1D1D37
+  legacy_config_path: configs/experiments/exp040_TGV_3d_multislice_r14.yaml
+  invariant_sections: [solver_scaling, solvers, memory_projection, thresholds, conditional_execution]
+
+resource_controls:
+  maximum_formal_active_unknowns: 274040
+  minimum_free_disk_gib: 15.0
+  assemble_formal_matrix: false
+  rerun_axial_control: false
+  full_tgv_execution_enabled: false
+  formal_cartesian_execution_enabled: false
+
+output:
+  hdf5_filename: exp040_r14_preflight.h5
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - outputs/exp040_r14_preflight.h5

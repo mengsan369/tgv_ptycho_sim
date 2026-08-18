@@ -1,0 +1,83 @@
+run:
+  name: exp040_TGV_3d_multislice_r12_preflight
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R12_preflight
+  scientific_result: false
+  description: Non-scientific algebra, manufactured-FEM, QDHT, and resource preflight.
+
+provenance:
+  r11_run: runs/exp040_TGV_3d_multislice_r11_20260815_195136
+  r11_metrics_sha256: 72B1FAD6ED2AD1D8F00E30CF6F003601FA862CDF7B2646C6EA9EC93CB670621B
+  r11_core48_checkpoint_sha256: 02BFAA2A11EF62E5FA45D717D407F04C8EBB8DBA43B05AB9463318D527629146
+  r11_chord512_checkpoint_sha256: 1BAC1C293D94E087439765C2B1C3C870600DC5C4257508A0D041105A239F6E2F
+
+formal_grid_controls:
+  finite_volume_core60:
+    dr_m: 8.333333333333333e-8
+    dz_m: 8.333333333333333e-8
+    radial_core_max_m: 6.0e-5
+    z_core_min_m: -2.0e-6
+    z_core_max_m: 1.02e-4
+    pml_thickness_m: 2.0e-6
+    expected_nr: 744
+    expected_nz: 1296
+    expected_unknowns: 964224
+  fem_core60:
+    radial_extent_m: 6.2e-5
+    z_min_m: -4.0e-6
+    z_max_m: 1.04e-4
+    radial_element_size_m: 5.0e-7
+    axial_element_size_m: 5.0e-7
+    cases:
+      - {degree: 2, expected_unknowns: 106888}
+      - {degree: 3, expected_unknowns: 240684}
+  cartesian:
+    dx_m: 1.25e-7
+    cases:
+      - {id: chord_fov96_standard, shape: [768, 768]}
+      - {id: chord_fov128_standard, shape: [1024, 1024]}
+      - {id: chord_fov128_alias, shape: [1024, 1024]}
+
+manufactured_fem:
+  fixed_order:
+    - homogeneous_p2
+    - homogeneous_p3
+    - interface_p2
+    - interface_p3
+  element_size: 0.125
+  quadrature_order: 12
+
+qdht:
+  order: 0
+  sample_count: 512
+  radial_max_m: 6.4e-5
+
+resource_model:
+  maximum_predicted_domain_peak_gib: 10.0
+  maximum_formal_unknowns: 964224
+  minimum_free_disk_gib: 20.0
+  retain_one_sparse_matrix_and_lu_at_a_time: true
+  allow_core72_or_core96: false
+
+thresholds:
+  solve_relative_residual_max: 1.0e-10
+  homogeneous_p3_weighted_relative_l2_max: 2.0e-4
+  homogeneous_p3_to_p2_ratio_max: 0.35
+  interface_p3_weighted_relative_l2_max: 5.0e-3
+  interface_p3_to_p2_ratio_max: 0.75
+  qdht_involution_relative_l2_max: 1.0e-10
+  qdht_parseval_relative_error_max: 1.0e-10
+  qdht_roundtrip_relative_l2_max: 1.0e-10
+  require_all_finite: true
+
+output:
+  hdf5_filename: exp040_r12_preflight.h5
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - outputs/exp040_r12_preflight.h5

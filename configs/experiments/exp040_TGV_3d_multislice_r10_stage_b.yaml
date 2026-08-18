@@ -1,0 +1,158 @@
+run:
+  name: exp040_TGV_3d_multislice_r10_stage_b
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R10_stage_b
+  scientific_result: true
+  description: Pre-registered bidirectional scalar Helmholtz versus one-way multislice comparator.
+
+provenance:
+  stage_a_run: runs/exp040_TGV_3d_multislice_r10_stage_a_20260815_162021
+  stage_a_metrics_sha256: 3346A2463E7B374EBE850E4CE621A133307F359EF5EBC66D70458E91F0602817
+  stage_a_repaired_hdf5_sha256: 8044FB2CA0B39E7F72D3FBCA97E98F376C4DDE6B1C284E23B752F132CEA3F16B
+  stage_a_status: Passed
+  stage_a_interpretation: scalar_lateral_reference_closed
+  preflight_run: runs/exp040_TGV_3d_multislice_r10_stage_b_preflight_20260815_181436
+  preflight_metrics_sha256: 22D6F1D0BBF526B4DD077934963DCDF80E8FC8DA5E8A84E5F5A9EFE87F546D7F
+  preflight_hdf5_sha256: 64EDFB696183675419C114F7AD8B583035CA7E62FCA8B2EA2562CC4AF658F013
+  preflight_status: Passed
+  preflight_interpretation: formal_grid_preflight_passed
+
+physics:
+  wavelength_m: 5.32e-7
+  n_glass: 1.5
+  n_air: 1.0
+  background_interface_z_m: 1.0e-4
+  incident_amplitude: 1.0
+  sample_thickness_m: 1.0e-4
+  d_top_m: 3.0e-5
+  d_waist_m: 2.0e-5
+  d_bottom_m: 3.0e-5
+  z_waist_m: 5.0e-5
+
+helmholtz:
+  formulation: axisymmetric_scattered_field_contrast_source
+  discretization: cell_centered_conservative_five_point
+  radial_core_max_m: 2.4e-5
+  z_core_min_m: -2.0e-6
+  z_core_max_m: 1.02e-4
+  axial_material_subnodes: 8
+  radial_material_rule: exact_annular_disk_intersection
+  mass_material_rule: cell_average_n_squared
+  fixed_case_order: [coarse_nominal, fine_nominal, fine_enlarged_pml]
+  cases:
+    coarse_nominal:
+      dr_m: 1.25e-7
+      dz_m: 1.25e-7
+      pml_thickness_m: 2.0e-6
+      expected_nr: 208
+      expected_nz: 864
+      expected_unknowns: 179712
+    fine_nominal:
+      dr_m: 8.333333333333333e-8
+      dz_m: 8.333333333333333e-8
+      pml_thickness_m: 2.0e-6
+      expected_nr: 312
+      expected_nz: 1296
+      expected_unknowns: 404352
+    fine_enlarged_pml:
+      dr_m: 8.333333333333333e-8
+      dz_m: 8.333333333333333e-8
+      pml_thickness_m: 3.0e-6
+      expected_nr: 324
+      expected_nz: 1320
+      expected_unknowns: 427680
+  pml:
+    coordinate_stretch: cylindrical_complex_coordinate
+    polynomial_order: 3
+    target_one_way_amplitude: 1.0e-8
+    radial_reference_medium: air
+    lower_z_reference_medium: glass
+    upper_z_reference_medium: air
+    outer_boundary: scattered_field_zero_dirichlet_at_half_cell_distance
+  solver:
+    package: scipy_splu
+    sparse_format: csc
+    permc_spec: COLAMD
+    retain_one_matrix_and_lu_at_a_time: true
+
+observation:
+  z_m: 1.01e-4
+  axial_extraction: linear_between_bracketing_cell_centers
+  normalization: total_field_divided_by_analytic_background
+  phase_scale_shift_tilt_alignment: false
+
+multislice:
+  shape: [1024, 1024]
+  dx_m: 6.25e-8
+  dz_m: 2.5e-7
+  expected_slice_count: 400
+  interface_factor: 8
+  interface_rule: staggered_midpoint_cartesian_air_fraction
+  effective_index_rule: linear_cell_average_of_index
+  propagation_operator: centered_symmetric_split_step
+  internal_reference_index: 1.5
+  internal_bandlimit: true
+  post_exit_air_distance_m: 1.0e-6
+  post_exit_air_bandlimit: true
+  homogeneous_control: analytic_glass_then_air_plane_wave
+
+comparison:
+  cartesian_shape: [512, 512]
+  cartesian_dx_m: 1.25e-7
+  trace_support_radius_m: 2.4e-5
+  outer_fill_normalized_value: 1.0
+  physical_passband_cutoff_cycles_per_m: 1879699.2481203007
+  passband_boundary_inclusive: true
+  multislice_order: native_1024_passband_then_aligned_2x2_cell_average
+  annular_bin_width_m: 1.25e-7
+  annular_maximum_radius_m: 2.0e-5
+  weighted_norm: two_pi_r_relative_l2
+  mesh_pair: [coarse_nominal, fine_nominal]
+  mesh_denominator: fine_nominal
+  pml_pair: [fine_nominal, fine_enlarged_pml]
+  pml_denominator: fine_enlarged_pml
+  cross_model_pair: [multislice_fine_1024, fine_enlarged_pml]
+  cross_model_denominator: fine_enlarged_pml
+  guard_inner_max_radius_m: 2.0e-5
+  guard_min_radius_m: 2.2e-5
+  guard_max_radius_m: 2.4e-5
+  phase_scale_shift_tilt_alignment: false
+  postprocessing_determinism: repeat_complete_mapping_projection_mean_metrics
+
+thresholds:
+  solve_relative_residual_max: 1.0e-9
+  algebra_absolute_or_relative_max: 1.0e-12
+  postprocessing_determinism_relative_l2_max: 1.0e-14
+  reference_passband_relative_l2_max: 5.0e-2
+  homogeneous_field_relative_l2_max: 5.0e-2
+  multislice_azimuthal_anisotropy_relative_l2_max: 5.0e-2
+  outer_guard_rms_ratio_max: 5.0e-2
+  cross_model_materiality_relative_l2: 5.0e-2
+  require_all_finite: true
+
+output:
+  hdf5_filename: exp040_r10_stage_b.h5
+  figure_filenames:
+    - r10_stage_b_reference_controls.png
+    - r10_stage_b_cross_model.png
+    - r10_stage_b_radial_profiles.png
+  save_sparse_matrices: false
+  save_full_rz_fields: false
+  save_slice_volumes: false
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - run_progress.json
+    - checkpoints/coarse_nominal.npz
+    - checkpoints/fine_nominal.npz
+    - checkpoints/fine_enlarged_pml.npz
+    - checkpoints/multislice_fine_1024.npz
+    - outputs/exp040_r10_stage_b.h5
+    - figures/r10_stage_b_reference_controls.png
+    - figures/r10_stage_b_cross_model.png
+    - figures/r10_stage_b_radial_profiles.png

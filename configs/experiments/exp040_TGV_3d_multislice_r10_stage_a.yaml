@@ -1,0 +1,103 @@
+run:
+  name: exp040_TGV_3d_multislice_r10_stage_a
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R10_stage_a
+  scientific_result: true
+  description: Pre-registered 512-square to 1024-square scalar lateral-reference closure comparison.
+
+provenance:
+  r9_run: runs/exp040_TGV_3d_multislice_r9_a_exit_attribution_20260814_184026
+  r9_metrics_sha256: 88B362C134657B1BCAA435E1D67B6A20CA233D51DDC9036F312071189D8D27F4
+  r9_lateral_cell_average:
+    pair_dx_m: [2.5e-7, 1.25e-7]
+    raw_relative_l2: 0.20874412488300234
+    external_passband_relative_l2: 0.17089819910643725
+  preflight_run: runs/exp040_TGV_3d_multislice_r10_stage_a_preflight_20260815_155426
+  preflight_status: Passed
+  preflight_interpretation: stage_a_formal_run_feasible
+
+physics:
+  wavelength_m: 5.32e-7
+  internal_reference_index: 1.5
+  external_medium_index: 1.0
+  angular_spectrum_bandlimit: true
+  illumination_amplitude: 1.0
+  illumination_theta_x_rad: 0.0
+  illumination_theta_y_rad: 0.0
+  sample_thickness_m: 1.0e-4
+  d_top_m: 3.0e-5
+  d_waist_m: 2.0e-5
+  d_bottom_m: 3.0e-5
+  z_waist_m: 5.0e-5
+  center_xy_m: [0.0, 0.0]
+  n_glass: 1.5
+  n_air: 1.0
+
+stage_a:
+  fixed_case_order: [current_512, fine_1024]
+  cases:
+    - id: current_512
+      shape: [512, 512]
+      dx_m: 1.25e-7
+      dz_m: 2.5e-7
+      expected_slice_count: 400
+    - id: fine_1024
+      shape: [1024, 1024]
+      dx_m: 6.25e-8
+      dz_m: 2.5e-7
+      expected_slice_count: 400
+  common_fov_m: [6.4e-5, 6.4e-5]
+  interface:
+    factor: 8
+    node_rule: pixel_center_plus_a_half_over_q
+    weights: uniform_nonnegative
+    effective_index: linear_cell_average_of_indicator
+  propagation:
+    operator: centered_symmetric_split_step
+    stream_slices: true
+    retain_full_volumes: false
+    detector_path_recomputed: false
+  physical_passband:
+    definition: external_medium_index_over_vacuum_wavelength
+    cutoff_cycles_per_m: 1879699.2481203007
+    boundary_inclusive: true
+    apply_on_each_native_grid_before_restriction: true
+  restriction:
+    method: aligned_2x2_complex_cell_average
+    refinement_ratio: 2
+    denominator: restricted_fine_1024_reference
+    phase_scale_spatial_alignment: false
+  comparison:
+    field: total_complex_U_A_exit
+    metrics: [raw_relative_l2, external_passband_relative_l2]
+    difference_energy_decomposition: external_passband_inside_outside_parseval
+    empirical_r9_r10_ratio_and_order: report_only
+  determinism:
+    scope: repeated_projection_restriction_and_comparison_postprocessing
+
+thresholds:
+  convergence_relative_l2_max: 5.0e-2
+  algebra_relative_l2_max: 1.0e-12
+  determinism_relative_l2_max: 1.0e-14
+  geometry_thickness_absolute_tolerance_m:
+    fixed_floor_m: 1.0e-15
+    floating_point_factor: 16.0
+  require_all_finite: true
+
+output:
+  hdf5_filename: exp040_r10_stage_a.h5
+  figure_filenames: [r10_stage_a_convergence.png, r10_stage_a_residuals.png]
+  save_native_complex_fields: false
+  save_slice_volumes: false
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - run_progress.json
+    - outputs/exp040_r10_stage_a.h5
+    - figures/r10_stage_a_convergence.png
+    - figures/r10_stage_a_residuals.png

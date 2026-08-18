@@ -1,0 +1,152 @@
+run:
+  name: exp040_TGV_3d_multislice_r14b
+  output_root: runs
+
+experiment:
+  id: exp040
+  stage: R14B
+  scientific_result: true
+  description: Solver-only formal scaling with hash-reused axial controls.
+
+provenance:
+  r13_run: runs/exp040_TGV_3d_multislice_r13_20260817_150406
+  r13_metrics_sha256: E79206316739EA3535047316E57E0592AA8F1A5FC51E799BD7694904DFE01382
+  r13_hdf5_sha256: C993DAAED6A935BD132D7C6B3572E63241E76E6FC02BFF80733CC2909F3607A0
+  r13_selected_candidate: h0p5_p4
+  r13_selected_candidate_projected_unknowns: 1713184
+  r12_cartesian_checkpoint: runs/exp040_TGV_3d_multislice_r12_20260817_141417/checkpoints/chord_fov128_alias.npz
+  r12_cartesian_checkpoint_sha256: A35D9B8FC58AC2298444FCC67D9D8155001F4FBB24A2191396213654DF0AB528
+  initial_preflight_run: runs/exp040_TGV_3d_multislice_r14_preflight_20260817_161959
+  initial_preflight_metrics_sha256: BC516A9A0428C7696A1E49D6CD175514D41D12E3DB3E97A0B1D53BB7F1366879
+  initial_preflight_hdf5_sha256: DFC6B68547DD9A2FCEC3DEF1CA8E676626B09DBD653C3C8339BC37E248D58C1B
+  r14a_run: runs/exp040_TGV_3d_multislice_r14a_20260817_163038
+  r14a_metrics_sha256: E6984C5094249BCBC5FE500101E17DE0125F6270D512ED9A127819DA52DCE53C
+  r14a_hdf5_sha256: 7D1A8787140C58C3E2160241A6F5904B1038E23A8D9A6CFEFC814C5D048EC91D
+  r14a_checkpoint_sha256: AA1EE4AE49781F323B4E0D3F87B2C7FA8ABF7E02CCD05E4566D9DA709B4ACBAE
+  preflight_run: runs/exp040_TGV_3d_multislice_r14b_release_20260817_164058
+  preflight_metrics_sha256: EC2DDB580ED21C2CC96CFBCF96F76988199C8EFE4689AEDF9152FFFC0141F61A
+  preflight_hdf5_sha256: ED74F01B815C4BBC4C3064239EEB1DB358BFF05BB8B177C2625CB863197B0D42
+  scientific_contract_sha256: F4247CC4298E61092363AD7FAD65016820088608D9A5FF42009ACEB50F1D1D37
+
+axial_pml:
+  mode: provenance_reuse_without_recomputation
+  reuse_registered_controls: true
+  fixed_case_order: [air_upward, glass_downward]
+  cases:
+    air_upward:
+      source: initial_r14_preflight_metrics
+      refractive_index: 1.0
+      direction: 1
+      element_size_m: 8.333333333333333e-8
+      pml_thickness_m: 2.0e-6
+      arrays_available: false
+    glass_downward:
+      source: r14a_glass_h24_pml2_checkpoint
+      refractive_index: 1.5
+      direction: -1
+      element_size_m: 4.1666666666666664e-8
+      pml_thickness_m: 2.0e-6
+      arrays_available: true
+
+solver_scaling:
+  formulation: manufactured_axisymmetric_pml_helmholtz
+  fixed_discretization_source: R13_h0p5_p4
+  degree: 4
+  element_size_ratio: 0.5
+  operator_wavenumber: 8.85787
+  pml_thickness: 1.0
+  pml_polynomial_order: 3
+  pml_target_one_way_amplitude: 1.0e-8
+  interface_fraction_of_core_radius: 0.4325
+  interface_inner_n2: 0.4444444444444444
+  interface_outer_n2: 1.0
+  target_radial_modal_wavenumber: 5.302909157469815
+  target_axial_modal_wavenumber: 6.283185307179586
+  modal_families: [nearest_primary, next_index_offset]
+  evaluation_points_per_core_unit: 8
+  fixed_case_order: [core4, core8, core16, core32, core64]
+  cases:
+    core4:  {core_extent: 4.0, expected_active_unknowns: 1880}
+    core8:  {core_extent: 8.0, expected_active_unknowns: 5688}
+    core16: {core_extent: 16.0, expected_active_unknowns: 19448}
+    core32: {core_extent: 32.0, expected_active_unknowns: 71544}
+    core64: {core_extent: 64.0, expected_active_unknowns: 274040}
+  direct_verification_cases: [core4, core8]
+
+solvers:
+  fixed_order: [csl_ilu_gmres, two_level_ras_csl_gmres]
+  gmres:
+    relative_tolerance: 1.0e-8
+    absolute_tolerance: 0.0
+    restart: 40
+    maximum_inner_iterations: 400
+    initial_guess: zero
+  complex_shifted_laplacian:
+    imaginary_mass_shift: 0.5
+  csl_ilu_gmres:
+    preconditioner: global_incomplete_lu_of_shifted_operator
+    drop_tolerance: 1.0e-3
+    fill_factor: 4.0
+    drop_rule: basic,area
+    permc_spec: COLAMD
+    full_lu_forbidden: true
+  two_level_ras_csl_gmres:
+    preconditioner: multiplicative_constant_coarse_plus_restricted_additive_schwarz
+    local_operator: complex_shifted_laplacian
+    core_block_shape_nodes: [64, 64]
+    overlap_nodes: 4
+    local_solver: sparse_direct_fixed_size
+    coarse_basis: one_normalized_constant_per_nonoverlapping_core_block
+    coarse_operator: galerkin_shifted_operator
+    coarse_solver: sparse_direct
+    full_global_factorization_forbidden: true
+
+memory_projection:
+  full_tgv_active_unknowns: 1713184
+  full_tgv_active_shape: [1727, 992]
+  safety_factor: 1.5
+  maximum_projected_peak_gib: 10.0
+  maximum_formal_process_peak_gib: 8.0
+  include_original_matrix: true
+  include_preconditioner_factors: true
+  include_restart_basis_vectors: 42
+  projection_rule: largest_case_measured_bytes_per_unknown_linear_with_coarse_fill_separate
+  coarse_projection_rule: loglog_least_squares_all_scales_with_largest_linear_floor
+
+thresholds:
+  solve_true_relative_residual_max: 1.0e-8
+  analytic_field_weighted_relative_l2_max: 1.0e-2
+  direct_agreement_relative_l2_max: 1.0e-6
+  maximum_gmres_inner_iterations: 300
+  maximum_iteration_growth_core64_over_core8: 4.0
+  maximum_projected_peak_gib: 10.0
+  axial_pml_incoming_to_outgoing_ratio_max: 1.0e-3
+  axial_pml_outgoing_impedance_residual_max: 1.0e-3
+  axial_pml_dense_field_relative_l2_max: 1.0e-3
+  require_all_finite: true
+
+conditional_execution:
+  solver_candidate_requires_all_scales_and_modal_families: true
+  full_tgv_execution_enabled: false
+  rerun_r12: false
+  rerun_r13: false
+  rerun_cartesian: false
+  scalar_cross_model_enabled: false
+  vector_model_enabled: false
+
+output:
+  hdf5_filename: exp040_r14b.h5
+  figure_filenames:
+    - r14_axial_pml.png
+    - r14_solver_convergence.png
+    - r14_solver_resource.png
+  required_files:
+    - config.yaml
+    - metadata.json
+    - metrics.json
+    - run_state.json
+    - run_progress.json
+    - outputs/exp040_r14b.h5
+    - figures/r14_axial_pml.png
+    - figures/r14_solver_convergence.png
+    - figures/r14_solver_resource.png
