@@ -7,10 +7,10 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from tgv_ptycho.forward.integer_shift import shift_field_integer_pixels
 from tgv_ptycho.forward.noise import apply_noise
 from tgv_ptycho.optics.angular_spectrum import angular_spectrum_propagate
 from tgv_ptycho.optics.fields import make_plane_wave
-from tgv_ptycho.optics.sampling import position_to_pixel_shift
 
 
 def _roll_object_integer_pixels(
@@ -18,9 +18,8 @@ def _roll_object_integer_pixels(
     position_xy: NDArray[np.floating],
     dx: float | tuple[float, float],
 ) -> NDArray[np.complex128]:
-    shift_y, shift_x = position_to_pixel_shift(position_xy, dx)
-    return np.roll(B_object, shift=(shift_y, shift_x), axis=(0, 1)).astype(
-        np.complex128, copy=False
+    return shift_field_integer_pixels(
+        B_object, position_xy, dx, boundary="periodic"
     )
 
 
@@ -34,6 +33,8 @@ def simulate_probe_B_forward(
     z_BC: float,
     incident_field: NDArray[np.complexfloating] | None = None,
     noise_config: dict[str, Any] | None = None,
+    object_boundary: str = "periodic",
+    object_boundary_value: complex = 1.0 + 0.0j,
 ) -> tuple[
     NDArray[np.float64],
     NDArray[np.complex128],
@@ -42,10 +43,10 @@ def simulate_probe_B_forward(
 ]:
     """Simulate scheme 1: A creates a probe on B, then B is scanned.
 
-    Current limitations:
-    - B shifts are rounded to integer pixels with `np.roll`.
-    - Subpixel interpolation and finite support handling are TODO items.
-    - The object array is treated as periodic under `np.roll`.
+    ``object_boundary="periodic"`` preserves the historical ``np.roll``
+    model.  ``object_boundary="constant"`` is a paired finite-FOV control;
+    the default exterior transmission is one.  Scan shifts remain integer
+    pixels and subpixel interpolation remains a future extension.
     """
 
     A = np.asarray(A_transmission_or_field, dtype=np.complex128)
@@ -70,7 +71,13 @@ def simulate_probe_B_forward(
 
     intensity_stack = np.empty((len(positions), *A.shape), dtype=np.float64)
     for idx, position_xy in enumerate(positions):
-        shifted_B = _roll_object_integer_pixels(B, position_xy, dx)
+        shifted_B = shift_field_integer_pixels(
+            B,
+            position_xy,
+            dx,
+            boundary=object_boundary,
+            fill_value=object_boundary_value,
+        )
         exit_wave = P_B * shifted_B
         U_det = angular_spectrum_propagate(exit_wave, dx, wavelength, z_BC)
         intensity = np.abs(U_det) ** 2
@@ -86,6 +93,8 @@ def simulate_probe_B_forward(
         "dx_m": dx,
         "num_scan_positions": int(len(positions)),
         "integer_pixel_shifts_only": True,
-        "todo": "Add subpixel interpolation and non-periodic object support.",
+        "object_boundary": object_boundary,
+        "object_boundary_value": object_boundary_value,
+        "todo": "Add subpixel interpolation and position refinement.",
     }
     return intensity_stack, P_B, B, metadata

@@ -107,8 +107,8 @@ expXXX research question
 
 | 实验 | 配置 | 脚本 | 实验文档 | 典型 run |
 |---|---|---|---|---|
-| exp001 | `configs/experiments/exp001_propagation_sanity.yaml` | `scripts/run_forward.py` | `docs/experiment_design/exp001_propagation_sanity.md` | `runs/exp001_propagation_sanity_<timestamp>/` |
-| exp010 | `configs/experiments/exp010_epie_known_probe.yaml` | `scripts/run_recon.py` | `docs/experiment_design/exp010_epie_known_probe.md` | `runs/exp010_epie_known_probe_<timestamp>/` |
+| exp001 | `configs/experiments/exp001_propagation_sanity.yaml` | `scripts/run_exp001_forward.py` | `docs/experiment_design/exp001_propagation_sanity.md` | `runs/exp001_propagation_sanity_<timestamp>/` |
+| exp010 | `configs/experiments/exp010_epie_known_probe.yaml` | `scripts/run_exp010_recon.py` | `docs/experiment_design/exp010_epie_known_probe.md` | `runs/exp010_epie_known_probe_<timestamp>/` |
 
 `exp020` 及后续 YAML 当前可能只是 scaffold。只有完成独立任务和验证后，才能补齐上表并将其视为正式实验。
 

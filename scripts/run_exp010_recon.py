@@ -118,6 +118,7 @@ def _make_positions(config: dict[str, Any]) -> np.ndarray:
 
 
 def _as_amplitude_bounds(value: Any) -> tuple[float, float] | None:
+    #给重建的样品的复透射函数振幅设置上下界，防止重建过程中振幅发散。若未设置，则返回None，表示不限制振幅范围。
     if value is None:
         return None
     if not isinstance(value, (list, tuple)) or len(value) != 2:

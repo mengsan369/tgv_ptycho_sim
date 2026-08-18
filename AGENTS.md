@@ -199,8 +199,8 @@ python -m ruff check src scripts tests
 已验证实验入口：
 
 ```powershell
-python scripts/run_forward.py --config configs/experiments/exp001_propagation_sanity.yaml
-python scripts/run_recon.py --config configs/experiments/exp010_epie_known_probe.yaml
+python scripts/run_exp001_forward.py --config configs/experiments/exp001_propagation_sanity.yaml
+python scripts/run_exp010_recon.py --config configs/experiments/exp010_epie_known_probe.yaml
 ```
 
 `.vscode/launch.json` 已提供 exp001、exp010 和当前 Python 文件的 debug 配置。其中 `MPLBACKEND=Agg` 是当前 Windows/debugpy 绘图兼容设置，不应自动推广为所有环境的永久要求。

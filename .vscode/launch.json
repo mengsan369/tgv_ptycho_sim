@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "run_forward exp001",
+      "name": "run_exp001_forward exp001",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/scripts/run_forward.py",
+      "program": "${workspaceFolder}/scripts/run_exp001_forward.py",
       "args": [
         "--config",
         "${workspaceFolder}/configs/experiments/exp001_propagation_sanity.yaml"
@@ -19,10 +19,10 @@
       }
     },
     {
-      "name": "run_recon exp010 known probe ePIE",
+      "name": "run_exp010_recon exp010 known probe ePIE",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/scripts/run_recon.py",
+      "program": "${workspaceFolder}/scripts/run_exp010_recon.py",
       "args": [
         "--config",
         "${workspaceFolder}/configs/experiments/exp010_epie_known_probe.yaml"

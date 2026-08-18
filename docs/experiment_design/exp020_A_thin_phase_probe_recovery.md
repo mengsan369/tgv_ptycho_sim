@@ -141,15 +141,15 @@ raw reconstruction 始终单独保留。truth-aided 数组只在名称明确的 
 D:\anaconda3\envs\tgv_ptycho_sim\python.exe -m pytest -q
 D:\anaconda3\envs\tgv_ptycho_sim\python.exe -m ruff check <本次修改文件>
 D:\anaconda3\envs\tgv_ptycho_sim\python.exe -m ruff check src scripts tests
-D:\anaconda3\envs\tgv_ptycho_sim\python.exe scripts/run_forward.py --config configs/experiments/exp001_propagation_sanity.yaml
-D:\anaconda3\envs\tgv_ptycho_sim\python.exe scripts/run_recon.py --config configs/experiments/exp010_epie_known_probe.yaml
+D:\anaconda3\envs\tgv_ptycho_sim\python.exe scripts/run_exp001_forward.py --config configs/experiments/exp001_propagation_sanity.yaml
+D:\anaconda3\envs\tgv_ptycho_sim\python.exe scripts/run_exp010_recon.py --config configs/experiments/exp010_epie_known_probe.yaml
 ```
 
 结果：
 
 - full pytest：`20 passed`；
 - 本次修改文件 Ruff：全绿；
-- 项目级 Ruff：13 个既有问题，位于 `scripts/run_forward.py`、`calibration/stage.py`、用户已有修改的 `optics/angular_spectrum.py`、`recon/losses.py` 和 `recon/rpie.py`；本任务未顺手修改；
+- 项目级 Ruff：13 个既有问题，位于 `scripts/run_exp001_forward.py`、`calibration/stage.py`、用户已有修改的 `optics/angular_spectrum.py`、`recon/losses.py` 和 `recon/rpie.py`；本任务未顺手修改；
 - exp001 回归成功，新 run：`runs/exp001_propagation_sanity_20260712_135016/`；
 - exp010 回归成功，新 run：`runs/exp010_epie_known_probe_20260712_135025/`，final loss `4.226706e-3`，aligned B relative error `4.538628e-2`。
 

@@ -7,6 +7,10 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from tgv_ptycho.objects.tgv_geometry import (
+    diameter_profile as _shared_diameter_profile,
+)
+from tgv_ptycho.objects.tgv_geometry import validate_tgv_geometry
 from tgv_ptycho.optics.fields import coordinate_grid
 
 
@@ -18,14 +22,11 @@ def _diameter_profile(
     d_bottom: float,
     z_waist: float,
 ) -> NDArray[np.float64]:
-    before = z <= z_waist
-    diameter = np.empty_like(z, dtype=np.float64)
-    diameter[before] = d_top + (d_waist - d_top) * z[before] / z_waist
-    after_span = max(thickness - z_waist, np.finfo(float).eps)
-    diameter[~before] = d_waist + (d_bottom - d_waist) * (
-        (z[~before] - z_waist) / after_span
+    """Compatibility wrapper around the shared public diameter profile."""
+
+    return _shared_diameter_profile(
+        z, thickness, d_top, d_waist, d_bottom, z_waist
     )
-    return diameter
 
 
 def make_tgv_refractive_index_volume(
@@ -70,19 +71,17 @@ def make_tgv_refractive_index_volume(
     if len(shape_xyz) != 3:
         msg = "shape_xyz must be (nz, ny, nx)."
         raise ValueError(msg)
-    if dz <= 0 or thickness <= 0:
+    if dz <= 0:
         msg = "dz and thickness must be positive."
-        raise ValueError(msg)
-    if min(d_top, d_waist, d_bottom) <= 0:
-        msg = "diameters must be positive."
         raise ValueError(msg)
 
     nz, ny, nx = (int(v) for v in shape_xyz)
-    if z_waist is None:
-        z_waist = thickness / 2.0
-    if not 0.0 < z_waist < thickness:
-        msg = "z_waist must be inside the sample thickness."
+    if min(nz, ny, nx) <= 0:
+        msg = "shape_xyz entries must be positive."
         raise ValueError(msg)
+    z_waist = validate_tgv_geometry(
+        thickness, d_top, d_waist, d_bottom, z_waist
+    )
 
     z = (np.arange(nz, dtype=np.float64) + 0.5) * dz
     z_clipped = np.clip(z, 0.0, thickness)
