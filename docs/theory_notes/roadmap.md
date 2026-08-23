@@ -28,13 +28,39 @@
 reference-validation 诊断。自 2026-08-17 起工作状态为 `Frozen / Paused`，整体科学状态仍为
 `Inconclusive`。最新 R14B formal 状态为 `Failed / r14_no_scalable_scipy_solver`；当前保持
 `reference_validated=false`、`full_tgv_reference_authorized=false`，不得把同模型 self-consistency
-提升为真实三维电磁物理准确性。近期优先启动 exp050 复原研究，恢复更高级物理验证前须重新定义研究问题、
-reference 身份、solver 路线和验收门槛。详见
+提升为真实三维电磁物理准确性。恢复更高级物理验证前须重新定义研究问题、reference 身份、solver 路线和
+验收门槛。详见
 `docs/experiment_design/exp040_TGV_3d_multislice_forward.md`。
+
+Phase 4 与 Phase 5 之间的 measurement/reconstruction 衔接状态：
+
+- `exp041_information_rich_sample_b_design`：`Discussion draft / Not started`。保留为 sample-B/scan 设计问题；在
+  Phase 5 建立腰径 Jacobian/Fisher 等目标指标前，不进行无目标的 B-family sweep。
+- `exp042_TGV_3d_multislice_probe_reconstruction`：Stage A/B known-B development baseline 已建立，当前
+  `Paused pending Phase 5 feedback`。exp040 scalar working model 下的 q4/q4 matched raw `P_B_rec` 可供后续参数拟合，
+  但只覆盖单一、无噪声、matched、known-B case，不构成 blind、真实物理或腰径结论。最低谱端问题在其第 23 节
+  挂起，exp042 整体阶段性挂起决定见其第 28 节；只有 Phase 5 指出明确 reconstruction bottleneck 时才定向恢复。
 
 ## Phase 5: waist observability and parametric fitting
 
 从 recovered probe 或 simulated probe signature 中拟合 `D(z)` 或低维 TGV shape parameters，估计 `D_waist`。
+
+当前状态：`Reserved / Not started`。近期只研究低维参数，首先是 `D_waist`；任意三维 `D(z)` 恢复、真实计量精度和
+physical-reference authorization 不在首次 Phase 5 baseline 内。预留编号分成两条平行证据链：
+
+| 实验 | forward model | 输入 | 预留问题 |
+|---|---|---|---|
+| `exp050` | 2D projected | `P_B_true` | 单参数 `D_waist` oracle fitting |
+| `exp051` | exp040 scalar multislice working model | `P_B_true` | 单参数 `D_waist` oracle fitting |
+| `exp052` | 2D projected | matched `P_B_rec` | reconstruction 后的单参数腰径拟合 |
+| `exp053` | exp040 scalar multislice working model | exp042 q4/q4 raw `P_B_rec` | reconstruction 后的单参数腰径拟合 |
+| `exp054` | 2D projected | 先 true、后 matched rec | nuisance / multi-parameter identifiability |
+| `exp055` | exp040 scalar multislice working model | 先 true、后 matched rec | nuisance / multi-parameter identifiability |
+
+依赖链为 `exp050 -> exp052 -> exp054`（projected diagnostic）和 `exp051 -> exp053 -> exp055`（scalar working-model
+primary）。编号不表示六项必须串行完成。projected 与 multislice 的 truth/data/reconstruction 必须各自 matched；把一种 forward
+产生的数据交给另一种模型拟合属于以后单独预注册的 model-mismatch 问题。`exp050`--`exp055` 当前只保留编号和职责，不表示已有
+YAML、实现、run、threshold 或结果。direct detector-intensity fitting 从 `exp056` 以后再根据前述证据决定编号与范围。
 
 ## Phase 6: tilted A and multi-angle simulation
 
