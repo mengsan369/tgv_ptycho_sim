@@ -1,0 +1,145 @@
+experiment:
+  id: exp051
+  role: 3d_scalar_multislice_true_probe_q8_local_differentiability_control
+  truth_identity: simulation truth under the selected exp040 scalar working model
+  reference_validated: false
+  full_tgv_reference_authorized: false
+
+source:
+  run: runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260822_195139
+  config_filename: config.yaml
+  metadata_filename: metadata.json
+  metrics_filename: metrics.json
+  run_state_filename: run_state.json
+  hdf5_relative_path: outputs/exp042_probe_reconstruction.h5
+  target_hdf5_path: /entry/truth/P_B_true
+  expected_sha256:
+    config: 2B24FB4E3D87C82EA259F3EAA3685E456A7D9F0AFEB22D2EA11E560E66DB6C0B
+    metadata: B6C47B761DD0A5C329B426FA0F7925AD04EA7D0739D44800EAD3A139B0760C3C
+    metrics: DA36CAAB9999CC434A66128CD85702873F7A04167F36B78CED891A82D157BB80
+    run_state: 329F96D1B95BB6D2960C189F93AE909FFC2075866381A7391988E6F7D037FD4E
+    hdf5: 4AF86885BA6A5A60F6E76A48ADE5B272E25A5E96FE34D2B03E3774D53848D62E
+    target_dataset_bytes: FA61264AF0D96BF3393EC461E2147992FDE6926D0132B2346090790E40E8EBFD
+  expected_identity:
+    source_experiment: exp042
+    source_exp040_branch: R8 unified q8 finite-B open q4 scalar working model
+    development_case_id: canonical_geometry_coarse_matched_dev
+    source_git_commit: 6c1a43fdfe5d172db24474b6fbba0b1f92087666
+    plane: B
+    axis_order: [y, x]
+    native_shape: [96, 96]
+    dtype: complex128
+    node_dx_m: 5.0e-7
+    native_fov_m: [4.8e-5, 4.8e-5]
+    coordinate_endpoints_m: [-2.375e-5, 2.375e-5]
+    origin: geometric_origin_midway_between_four_central_samples
+    residual_embedding: centered_zero_pad_of_P_B_minus_homogeneous_reference
+    fft_normalization: numpy_fft_forward_unscaled_inverse_1_over_ny_nx
+    angular_spectrum_bandlimit: true
+    external_alias_control: true
+  forbidden_primary_input_tokens: [reconstruction, P_B_rec]
+
+prior_exp051:
+  run: runs/exp051_TGV_3d_multislice_true_probe_waist_fit_20260823_180631
+  hdf5_relative_path: outputs/exp051_true_probe_waist_fit.h5
+  required_interpretation: local_jacobian_numerical_control_not_closed
+  expected_sha256:
+    config: 320046672D5BEC1BBF0714763B0FB0C7639C979BFD1AD82C887AE2E389AA73C0
+    metadata: F1CDAA1E894420CE5C2307FA57C4E1CB8E3619090EB4B09354D940A02623B999
+    metrics: 4ED867067D3664CB68FE8DA37B62D7DA3F6A544E545E8E45EA849B44C426522A
+    run_state: 7F4CF653B28FD939725F857834A81439D6817F5741029FEA5BE7A01FDB30225D
+    hdf5: FDA70E0374AD15BA67C2605B1E8055C01199D5375843F0A65BCD4D9C7475E7C0
+
+fixed_model:
+  sample_a_model: axisymmetric_tgv_q8_cell_average_scalar_multislice
+  shape: [96, 96]
+  dx_m: 5.0e-7
+  thickness_m: 1.0e-4
+  target_dz_m: 1.0e-6
+  slice_count: 100
+  interface_factor: 8
+  d_top_m: 3.0e-5
+  d_bottom_m: 3.0e-5
+  z_waist_m: 5.0e-5
+  center_xy_m: [0.0, 0.0]
+  n_glass: 1.5
+  n_air: 1.0
+  wavelength_m: 5.32e-7
+  internal_reference_index: 1.5
+  external_medium_index: 1.0
+  z_AB_m: 5.0e-4
+  illumination_amplitude: 1.0
+  illumination_theta_xy_rad: [0.0, 0.0]
+  internal_bandlimit: true
+  internal_alias_control: false
+  external_bandlimit: true
+  external_alias_control: true
+  axis_order: [y, x]
+  complex_dtype: complex128
+
+fit:
+  primary_loss: raw_complex_normalized_squared_l2
+  mask: full_native_field_all_true
+  weighting: equal_per_complex_pixel
+  phase_or_scale_alignment: none
+  true_d_waist_m: 2.0e-5
+  bounds_m: [1.6e-5, 2.4e-5]
+  coarse_grid_m: [1.6e-5, 1.7e-5, 1.8e-5, 1.9e-5, 2.0e-5, 2.1e-5, 2.2e-5, 2.3e-5, 2.4e-5]
+  fine_half_width_m: 5.0e-7
+  fine_step_m: 1.25e-7
+  finite_difference_steps_m: [2.5e-7, 1.25e-7]
+  optimizer:
+    algorithm: fixed_budget_bounded_pattern_search
+    starts_m: [1.65e-5, 1.85e-5, 2.15e-5, 2.35e-5]
+    initial_step_m: 2.0e-6
+    evaluation_budget_per_start: 41
+    stopping_reason: evaluation_budget
+    representative_estimate: median_of_all_final_estimates
+
+thresholds:
+  replay_raw_relative_l2_max: 1.0e-12
+  replay_amplitude_relative_l2_max: 1.0e-12
+  replay_phase_sensitive_relative_l2_max: 1.0e-12
+  deterministic_repeat_relative_l2_max: 1.0e-14
+  profile_uniqueness_loss_floor: 1.0e-20
+  profile_absolute_error_m_max: 1.25e-7
+  profile_minimum_loss_max: 1.0e-20
+  profile_second_to_floor_ratio_min: 10000.0
+  signature_to_floor_ratio_min: 1000000.0
+  normalized_jacobian_per_m_min: 10000.0
+  jacobian_step_relative_l2_max: 0.35
+  optimizer_absolute_error_m_max: 1.25e-7
+  optimizer_relative_error_max: 0.00625
+  optimizer_profile_agreement_m_max: 1.25e-7
+  optimizer_spread_m_max: 1.25e-7
+  boundary_margin_m: 1.25e-7
+
+local_control:
+  q8_interface_method: subpixel_midpoint_count
+  q8_interface_factor: 8
+  chord_interface_method: analytic_chord_gauss_legendre_cell_average
+  chord_formal_order: 64
+  chord_reference_order: 128
+  inside_gap_fraction: 0.5
+  cross_gap_fraction: 1.5
+  step_family_m: [5.0e-7, 2.5e-7, 1.25e-7, 6.25e-8, 3.125e-8, 1.5625e-8, 7.8125e-9, 3.90625e-9]
+  thresholds:
+    source_replay_relative_l2_max: 1.0e-12
+    deterministic_repeat_relative_l2_max: 1.0e-14
+    cross_probe_response_relative_l2_min: 1.0e-12
+    chord_geometry_order_relative_l2_max: 1.0e-5
+    chord_geometry_volume_relative_error_max: 1.0e-5
+    chord_final_jacobian_relative_l2_max: 0.10
+    chord_final_normalized_jacobian_per_m_min: 1.0e4
+
+output:
+  root: runs
+  run_name: exp051_TGV_3d_multislice_true_probe_waist_fit_q8_local_control
+  hdf5_filename: exp051_local_differentiability_control.h5
+  figure_filenames:
+    - exp051_q8_breakpoint_response.png
+    - exp051_q8_vs_chord_jacobian.png
+    - exp051_local_control_fields.png
+  expected_runtime_seconds_max: 180.0
+  expected_peak_memory_bytes_max: 1073741824
+  expected_hdf5_bytes_max: 134217728
