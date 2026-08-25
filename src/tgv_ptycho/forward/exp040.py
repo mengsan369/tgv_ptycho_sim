@@ -89,6 +89,183 @@ def center_crop(
     ]
 
 
+def build_scalar_working_model_probe(
+    config: Mapping[str, Any],
+    *,
+    air_fraction_builder: Callable[
+        [
+            tuple[int, int],
+            float | tuple[float, float],
+            float,
+            int,
+            tuple[float, float],
+        ],
+        NDArray[np.float64],
+    ] = make_tgv_air_fraction_slice,
+    interface_resolution: int | None = None,
+) -> dict[str, Any]:
+    """Generate the exp040 q8 scalar working-model field at the B plane.
+
+    The mapping consumes the ``optics``, ``illumination``, ``sample_a`` and
+    ``probe_grid`` sections used by the matched exp042 development case.  It
+    streams q-factor air-fraction slices through the centered multislice
+    operator, then propagates the raw A-exit residual relative to the fixed
+    homogeneous reference.  The native ``P_B`` is not sample-B modulated,
+    detector cropped, or gauge aligned.  ``air_fraction_builder`` and
+    ``interface_resolution`` are explicit numerical-control injection points;
+    their defaults preserve the frozen q8 midpoint-interface behavior.
+    """
+
+    optics = _section(config, "optics")
+    illumination = _section(config, "illumination")
+    sample_a = _section(config, "sample_a")
+    probe_grid = _section(config, "probe_grid")
+    native_shape = _shape(probe_grid["native_shape"], "native_shape")
+    open_shape = _shape(probe_grid["open_shape"], "open_shape")
+    node_dx = float(probe_grid["node_dx_m"])
+    wavelength = float(optics["wavelength_m"])
+    n_ref = float(optics["internal_reference_index"])
+    n_external = float(optics["external_medium_index"])
+    thickness = float(sample_a["thickness_m"])
+    bandlimit = bool(optics["angular_spectrum_bandlimit"])
+    external_alias_control = bool(optics["alias_control_external"])
+    z_m, slice_widths = midpoint_z_grid(
+        thickness, float(sample_a["target_dz_m"])
+    )
+    diameters = diameter_profile(
+        z_m,
+        thickness,
+        float(sample_a["d_top_m"]),
+        float(sample_a["d_waist_m"]),
+        float(sample_a["d_bottom_m"]),
+        float(sample_a["z_waist_m"]),
+    )
+
+    incident_native = make_plane_wave(
+        native_shape,
+        node_dx,
+        wavelength,
+        theta_x=float(illumination["theta_x_rad"]),
+        theta_y=float(illumination["theta_y_rad"]),
+        amplitude=float(illumination["amplitude"]),
+    )
+    homogeneous_exit_native = angular_spectrum_propagate(
+        incident_native,
+        node_dx,
+        wavelength,
+        thickness,
+        n=n_ref,
+        bandlimit=bandlimit,
+        alias_control=False,
+    )
+    n_glass = float(sample_a["n_glass"])
+    n_air = float(sample_a["n_air"])
+    interface_factor = (
+        int(sample_a["interface_factor"])
+        if interface_resolution is None
+        else int(interface_resolution)
+    )
+    if interface_factor <= 0:
+        raise ValueError("interface_resolution must be positive.")
+    center_xy = tuple(float(value) for value in sample_a["center_xy_m"])
+
+    def n_slices() -> Any:
+        for diameter in diameters:
+            fraction = air_fraction_builder(
+                native_shape,
+                node_dx,
+                float(diameter),
+                interface_factor,
+                center_xy,
+            )
+            yield n_glass + fraction * (n_air - n_glass)
+
+    a_exit = multislice_propagate_streamed_A(
+        incident_native,
+        n_slices(),
+        node_dx,
+        slice_widths,
+        wavelength,
+        n_ref=n_ref,
+        bandlimit=bandlimit,
+        alias_control=False,
+    )
+    transfer_ab_native = make_angular_spectrum_transfer(
+        native_shape,
+        node_dx,
+        wavelength,
+        float(optics["z_AB_m"]),
+        n=n_external,
+        bandlimit=bandlimit,
+        alias_control=external_alias_control,
+    )
+    homogeneous_probe_native = apply_angular_spectrum_transfer(
+        homogeneous_exit_native, transfer_ab_native
+    )
+    p_b = homogeneous_probe_native + apply_angular_spectrum_transfer(
+        a_exit - homogeneous_exit_native, transfer_ab_native
+    )
+
+    incident_open = make_plane_wave(
+        open_shape,
+        node_dx,
+        wavelength,
+        theta_x=float(illumination["theta_x_rad"]),
+        theta_y=float(illumination["theta_y_rad"]),
+        amplitude=float(illumination["amplitude"]),
+    )
+    homogeneous_exit_open = angular_spectrum_propagate(
+        incident_open,
+        node_dx,
+        wavelength,
+        thickness,
+        n=n_ref,
+        bandlimit=bandlimit,
+        alias_control=False,
+    )
+    transfer_ab_open = make_angular_spectrum_transfer(
+        open_shape,
+        node_dx,
+        wavelength,
+        float(optics["z_AB_m"]),
+        n=n_external,
+        bandlimit=bandlimit,
+        alias_control=external_alias_control,
+    )
+    homogeneous_probe_open = apply_angular_spectrum_transfer(
+        homogeneous_exit_open, transfer_ab_open
+    )
+    transfer_bc = make_angular_spectrum_transfer(
+        open_shape,
+        node_dx,
+        wavelength,
+        float(optics["z_BC_m"]),
+        n=n_external,
+        bandlimit=bandlimit,
+        alias_control=external_alias_control,
+    )
+    homogeneous_detector_open = apply_angular_spectrum_transfer(
+        homogeneous_probe_open, transfer_bc
+    )
+    return {
+        "P_B": np.asarray(p_b, dtype=np.complex128),
+        "U_A_exit": np.asarray(a_exit, dtype=np.complex128),
+        "homogeneous_probe_native": np.asarray(
+            homogeneous_probe_native, dtype=np.complex128
+        ),
+        "homogeneous_probe_open": np.asarray(
+            homogeneous_probe_open, dtype=np.complex128
+        ),
+        "homogeneous_detector_open": np.asarray(
+            homogeneous_detector_open, dtype=np.complex128
+        ),
+        "transfer_bc": np.asarray(transfer_bc, dtype=np.complex128),
+        "z_m": np.asarray(z_m, dtype=np.float64),
+        "slice_widths_m": np.asarray(slice_widths, dtype=np.float64),
+        "D_z_m": np.asarray(diameters, dtype=np.float64),
+    }
+
+
 def resample_centered_grid(
     values: NDArray[np.generic],
     source_dx_m: float,

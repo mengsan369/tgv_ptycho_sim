@@ -70,6 +70,7 @@ def save_ptycho_hdf5(
     *,
     I_stack: NDArray[np.floating] | None = None,
     scan_positions: NDArray[np.floating] | None = None,
+    data: dict[str, Any] | None = None,
     instrument: dict[str, Any] | None = None,
     sample: dict[str, Any] | None = None,
     truth: dict[str, Any] | None = None,
@@ -97,6 +98,9 @@ def save_ptycho_hdf5(
             _write_item(data_group, "I_stack", np.asarray(I_stack))
         if scan_positions is not None:
             _write_item(data_group, "scan_positions", np.asarray(scan_positions))
+        if data is not None:
+            for name, value in data.items():
+                _write_item(data_group, str(name), value)
 
         if instrument is not None:
             _write_item(entry, "instrument", instrument)
