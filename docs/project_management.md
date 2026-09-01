@@ -13,16 +13,16 @@
 
 ## 2. 项目阶段路线图
 
-路线图的理论定义见 `docs/theory_notes/roadmap.md`。当前治理状态如下：
+路线图的理论定义见 `docs/theory_notes/roadmap.md`。截至 2026-09-01，当前治理状态如下：
 
 | Phase | 实验主题 | 当前状态 | 主要证据 |
 |---|---|---|---|
 | Phase 0 | propagation sanity check | 已实现并验证 | `exp001` config、脚本、测试、run、实验记录 |
 | Phase 1 | known-probe object-only ePIE | 已实现并验证 | `exp010` config、脚本、测试、run、实验记录 |
-| Phase 2 | A thin phase object 生成未知 probe，恢复并 backpropagate | 未独立验证 | 仅有路线图/占位配置或可复用接口 |
-| Phase 3 | TGV-like 2D effective phase | 未独立验证 | 仅作为简化模型方向，不代表 3D 腰径 |
-| Phase 4 | 3D TGV multi-slice forward | 未独立验证 | 已有初版模块/占位配置，仍需 reference 验证 |
-| Phase 5 | waist observability 与 parametric fitting | 未实现或未验证 | 路线图与占位接口 |
+| Phase 2 | A thin phase object 生成未知 probe，恢复并 backpropagate | 理想强先验 baseline 已验证 | `exp020` config、实现、测试、run、实验记录 |
+| Phase 3 | TGV-like 2D effective phase 与 finite-B/spot controls | 限定二维问题已验证 | `exp030`、`exp031` 均在各自预注册边界内 Passed |
+| Phase 4 | 3D TGV multi-slice forward 与 probe reconstruction bridge | working model 可用，reference 仍未闭合 | `exp040` Inconclusive/Frozen；`exp042` known-B raw control complete/validated |
+| Phase 5 | waist observability 与 parametric fitting | fixed-parameter 单参数链已闭合 | `exp051` true-probe 与 `exp053` reconstructed-probe 均 Passed；`exp055` 未启动 |
 | Phase 6 | tilted A 与 multi-angle | 未实现 | 路线图 |
 | Phase 7 | noise、stage error、calibration、experimental data | 接口预留，流程未实现 | `preprocess/`、`calibration/` scaffold |
 

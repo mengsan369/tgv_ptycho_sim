@@ -20,12 +20,16 @@ D_waist = min_z D(z)
 
 ## 2. 当前阶段
 
-以下是已由当前代码、配置和测试确认的状态：
+截至 2026-09-01，以下状态已由对应代码、配置、测试和 timestamped run 确认；精确实验边界仍以各实验文档的实时状态节和 append-only authoritative section 为准：
 
-- `exp001`：Phase 0 propagation sanity check，已经实现并运行验证。实验记录见 `docs/experiment_design/exp001_propagation_sanity.md`。
-- `exp010`：Phase 1 known-probe、object-only ePIE，已经实现并运行验证。probe 固定，只恢复随机样品 B。实验记录见 `docs/experiment_design/exp010_epie_known_probe.md`。
-- 当前测试基线为 Python 3.11 环境下 `12 passed`。
-- Phase 2 及后续阶段仍需作为独立实验任务逐项实现和验证。配置占位、函数签名或 TODO 不等于阶段完成。
+- `exp001`、`exp010`：Phase 0 propagation sanity 和 Phase 1 known-probe object-only ePIE 已实现并运行验证。
+- `exp020`：Phase 2 在纯相位、无噪声、强先验和 matched inverse-crime 条件下完成 unknown-probe/A-plane 回传 baseline；不代表弱先验或真实三维恢复。
+- `exp030`、`exp031`：Phase 3 的二维 projected-phase observability，以及 finite nonperiodic B / illumination-spot 数值问题，均在各自预注册二维边界内 `Passed`。
+- `exp040`：Phase 4 scalar multislice working model 已完成 R0--R14B 多轮数值/reference 诊断，但总体仍为 `Inconclusive / Frozen / Paused`；`reference_validated=false`、`full_tgv_reference_authorized=false`。
+- `exp042`：单一无噪声 known-B matched-q4 case 的定向 probe-reconstruction control 已完成并验证；authoritative raw GN-CG probe 可作为 Phase 5 输入，但不构成 blind-B 或真实物理结论。
+- `exp051`、`exp053`：selected exp040 scalar working model 内，fixed-q8、固定其他参数的 true-probe 与 reconstructed-probe 单参数 `D_waist` interval baselines 均已正式 `Passed`。这只关闭模型内数值 self-consistency，不是实际计量精度或不确定度结论。
+- `exp055`：nuisance / multi-parameter identifiability 仅保留职责，尚未预注册或启动；Phase 6--7 仍未开始。
+- 最近记录的全量测试为 `345 passed, 12 failed`；12 项均为既有 exp040 R10--R14B frozen-config SHA256 lock mismatch。最新 exp053 定向测试为 `5 passed`，exp051+exp053 组合回归为 `10 passed`，scoped Ruff 通过。不得把该记录写成当前全仓全绿基线。
 
 必须保持以下表述边界：
 
@@ -249,7 +253,7 @@ python scripts/run_exp010_recon.py --config configs/experiments/exp010_epie_know
 - subpixel scan shift 的具体实现、finite object support 和 periodic boundary 的替代方案。
 - detector pixel integration、sample/detector sampling remap 和不同 pixel size 的标准处理方式。
 - HDF5 schema version、compression/chunking 策略，以及正式 CXI / NeXus 导出兼容级别。
-- Phase 2 unknown-probe reconstruction 的更新策略、约束、验收指标和是否采用 ePIE/rPIE。
+- 超出 exp020 强先验 baseline 与 exp042 known-B control 后，blind-B / production unknown-probe reconstruction 的更新策略、约束、验收指标和是否采用 ePIE/rPIE。
 - 真实实验数据的 mandatory calibration 字段及缺失标定时的失败策略。
 
 遇到上述问题时，应在实验或治理任务中显式提出并记录决策，不得根据 exp001/exp010 的临时选择推断。

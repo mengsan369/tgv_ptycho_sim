@@ -1,0 +1,169 @@
+experiment:
+  id: exp053
+  role: 3d_scalar_multislice_reconstructed_probe_q8_cell_interval_fit
+  target_identity: raw matched-q4 reconstructed B-plane probe
+  reference_validated: false
+  full_tgv_reference_authorized: false
+
+source:
+  run: runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260831_183139
+  config_filename: config.yaml
+  metadata_filename: metadata.json
+  metrics_filename: metrics.json
+  run_state_filename: run_state.json
+  hdf5_relative_path: outputs/exp042_probe_reconstruction.h5
+  target_hdf5_path: /entry/reconstruction/exp053_feedback_control/branches/spectrally_damped_gn_cg/P_B_rec
+  operator_reference_hdf5_path: /entry/truth/P_B_true
+  forbidden_primary_input_tokens:
+    - global_phase
+    - aligned
+    - truth
+    - mismatch_q1
+    - matched_q1
+    - q1_point
+  expected_sha256:
+    config: 59860425AFAB3D07D6DA5D44A41085B3FA24E9EAFF6EE317ABE06B6BF0BA7276
+    metadata: 5B056A65302924A5C03E8EC5AAEB06B7C388F8888ED2BCCF86D24659C9CE7B2B
+    metrics: 195B001CC4EB90EE9B9B37ACACDEB599EF23D6379EEC0CA10025CB211D70615A
+    run_state: 75E70687CEA890E8CFFB9473F54080583685942CF45B70D5F89678621031905C
+    hdf5: C48588FC47EED474CF047219A1DB26BCC9242961A58176CA9CCB879495FFA37D
+    target_dataset_bytes: 194C7B950F8DCF2BF94212A6F63270296BC9EC79AE0C04ED557C864F5FE8EB07
+    operator_reference_dataset_bytes: FA61264AF0D96BF3393EC461E2147992FDE6926D0132B2346090790E40E8EBFD
+  expected_identity:
+    source_experiment: exp042
+    source_exp040_branch: R8 unified q8 finite-B open q4 scalar working model
+    development_case_id: canonical_geometry_coarse_matched_dev
+    source_git_commit: ac5c20843ff910c1d1619fe590b4b5e18bc38912
+    plane: B
+    axis_order: [y, x]
+    native_shape: [96, 96]
+    dtype: complex128
+    node_dx_m: 5.0e-7
+    native_fov_m: [4.8e-5, 4.8e-5]
+    open_shape: [256, 256]
+    residual_embedding: centered_zero_pad_of_P_B_minus_homogeneous_reference
+    fft_normalization: numpy_fft_forward_unscaled_inverse_1_over_ny_nx
+    angular_spectrum_bandlimit: true
+    external_alias_control: true
+    detector_branch: matched_q4
+    detector_data_source: primary_q4_data
+    detector_data_readout: positive_pixel_average
+    detector_model_role: exp040_matched_reference
+
+oracle_comparison:
+  run: runs/exp051_TGV_3d_multislice_true_probe_waist_fit_q8_plateau_interval_20260824_161440
+  hdf5_relative_path: outputs/exp051_q8_plateau_interval_fit.h5
+  required_experiment_status: Passed
+  required_interpretation: q8_plateau_interval_single_parameter_oracle_fit_passed
+  expected_interval_m:
+    lower: 1.9999972701052885e-5
+    upper: 2.0000143340468626e-5
+    lower_closed: true
+    upper_closed: false
+  expected_sha256:
+    config: 88CD812DC716C3AACB3BF7932B9A6A155D5CAE5C52842BED7C2F62F483301C8B
+    metadata: 3541FC02427CE5EF20E2DA188398242BD3A3C2E7F6885B860EB95F79814D5E34
+    metrics: 20955E3A6C8061A184633896851BA1EACF5E59A7424715EE7AB94C06B51AC418
+    run_state: DF69EF43C1E719F785962247B9E819DDB28A2D574A7FF796ED28D7800A19B588
+    hdf5: FD1F5E47300BB8A09329F8E21E1A9A3AFCD84BFEFA3FD9A7AD89705983270B3C
+
+fixed_model:
+  sample_a_model: axisymmetric_tgv_q8_cell_average_scalar_multislice
+  shape: [96, 96]
+  dx_m: 5.0e-7
+  thickness_m: 1.0e-4
+  target_dz_m: 1.0e-6
+  slice_count: 100
+  interface_factor: 8
+  d_top_m: 3.0e-5
+  d_bottom_m: 3.0e-5
+  z_waist_m: 5.0e-5
+  center_xy_m: [0.0, 0.0]
+  n_glass: 1.5
+  n_air: 1.0
+  wavelength_m: 5.32e-7
+  internal_reference_index: 1.5
+  external_medium_index: 1.0
+  z_AB_m: 5.0e-4
+  illumination_amplitude: 1.0
+  illumination_theta_xy_rad: [0.0, 0.0]
+  internal_bandlimit: true
+  internal_alias_control: false
+  external_bandlimit: true
+  external_alias_control: true
+  axis_order: [y, x]
+  complex_dtype: complex128
+
+fit:
+  primary_loss: raw_complex_normalized_squared_l2
+  mask: full_native_field_all_true
+  weighting: equal_per_complex_pixel
+  phase_or_scale_alignment: none
+  true_d_waist_m_simulation_evaluation_only: 2.0e-5
+  bounds_m: [1.6e-5, 2.4e-5]
+  coarse_grid_m: [1.6e-5, 1.7e-5, 1.8e-5, 1.9e-5, 2.0e-5, 2.1e-5, 2.2e-5, 2.3e-5, 2.4e-5]
+  fine_half_width_m: 5.0e-7
+  fine_step_m: 1.25e-7
+  optimizer:
+    algorithm: fixed_budget_bounded_pattern_search
+    starts_m: [1.65e-5, 1.85e-5, 2.15e-5, 2.35e-5]
+    initial_step_m: 2.0e-6
+    evaluation_budget_per_start: 43
+    stopping_reason: evaluation_budget
+    representative_estimate: midpoint_of_common_q8_field_equivalence_component
+    numerical_closure_control:
+      baseline_evaluation_budget_per_start: 41
+      additional_complete_pattern_updates_per_start: 1
+      evaluations_per_pattern_update: 2
+      added_evaluations_per_start: 2
+      selection_basis: existing_raw_target_loss_and_41_call_tracks_only
+      equal_budget_all_starts: true
+      truth_used_for_method_parameter_or_stopping_selection: false
+
+reconstruction_aware_interval:
+  primary_definition: connected_best_candidate_q8_field_equivalence_component
+  q8_interface_method: subpixel_midpoint_count
+  q8_interface_factor: 8
+  source_exact_boundary_control:
+    method: bounded_float64_nextafter_transition_scan
+    max_ulps_each_direction: 8
+    lower_boundary_definition: first_representable_member_after_outside
+    upper_boundary_definition: first_representable_outside_after_member
+    membership_contract: tau_primary_exact_field_and_node_count_all_agree
+    primary_boundary_reference: source_exact_float64_membership_transition
+    analytic_breakpoint_role: retained_algebraic_diagnostic_only
+    truth_used_for_mapping_selection_or_stopping: false
+  field_equivalence_threshold:
+    primary_relative_l2: 1.0e-12
+    low_factor: 0.1
+    high_factor: 10.0
+  screened_loss_tie_absolute: 1.0e-14
+  max_adjacent_cells_per_direction: 256
+  boundary_bisection_iterations: 24
+  thresholds:
+    candidate_operator_replay_relative_l2_max: 1.0e-14
+    deterministic_repeat_relative_l2_max: 1.0e-14
+    boundary_resolution_m_max: 1.0e-12
+    interval_width_m_max: 1.25e-7
+    truth_to_interval_distance_m_max_simulation_evaluation_only: 1.25e-7
+    endpoint_absolute_error_m_max_simulation_evaluation_only: 1.25e-7
+    endpoint_relative_error_max_simulation_evaluation_only: 0.00625
+    boundary_margin_m: 1.25e-7
+  directional_diagnostic:
+    trigger: experiment_not_passed_or_truth_outside_reported_interval
+    finite_change_offsets_m: [-1.25e-7, 1.25e-7]
+    enters_fitter: false
+    simulation_evaluation_only: true
+
+output:
+  root: runs
+  run_name: exp053_TGV_3d_multislice_reconstructed_probe_q8_cell_interval
+  hdf5_filename: exp053_reconstructed_probe_q8_cell_interval_fit.h5
+  required_figure_filenames:
+    - exp053_reconstructed_target_global_profile.png
+    - exp053_q8_local_staircase_oracle_comparison.png
+    - exp053_four_start_optimizer_tracks.png
+  directional_diagnostic_figure_filename: exp053_reconstruction_error_directional_diagnostic.png
+  expected_runtime_seconds_max: 180.0
+  expected_peak_memory_bytes_max: 1073741824
+  expected_hdf5_bytes_max: 134217728

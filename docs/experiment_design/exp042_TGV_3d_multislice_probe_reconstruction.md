@@ -11,11 +11,16 @@ Results available: false
 本节是本文唯一允许实时更新的状态入口；文首代码块和紧随其后的设计阶段说明是首次建档时的历史快照，
 不再代表当前进度。第 1 节以后继续按历史设计与 append-only 实验记录阅读，不回改既有结论。
 
-当前状态：`Stage A/B known-B development baseline complete / Paused pending Phase 5 feedback`。当前可复用输出是
-exp040 scalar working model 下的 q4/q4 matched raw `P_B_rec`；最新有效 run 为
-`runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260822_195139`。这不是 scientific Passed；仍保持
-`reference_validated=false`、`full_tgv_reference_authorized=false`，且只覆盖单一、无噪声、matched、known-B case。
-按当前 roadmap，scalar `P_B_true` oracle fitting 预留为 `exp051`，本实验 raw `P_B_rec` 的对应下游 fitting 预留为 `exp053`。
+当前状态：`Directed recovery control complete / artifacts validated / downstream fixed-parameter numerical closure complete`。第 29 节失败证据继续保留；
+在不改方法、配置或预算后，corrected exp042 formal run
+`runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260831_183139` 已完整验证。谱阻尼 GN-CG raw control 将 detector residual
+从 baseline `0.00885719` 降至 `0.00339877`，raw probe error 从 `0.139372` 降至 `0.101078`，best-candidate 方向的绝对 real projection
+降至 baseline 的 `46.64%`。第 30 节记录的首次冻结 exp053 复验曾因第 4 个等预算起点未闭合而为 `Inconclusive`；该历史证据不回改。
+exp053 随后在不改变本 raw source、不使用 truth 选择方法的前提下，于其第 15--16 节完成等预算与 source-exact float64 boundary controls，
+同一区间约 `[20.00301349, 20.00327037) um` 最终为 `Passed`，simulation-only truth distance 约 `3.01 nm`。exp042 自身最新 authoritative
+record 仍为第 30 节；下游当前状态以 exp053 第 16 节/run `20260901_122210` 为准。始终保持 `reference_validated=false`、
+`full_tgv_reference_authorized=false`，且只覆盖单一、
+无噪声、matched、known-B frozen scalar case。
 
 建议阅读顺序：
 
@@ -25,9 +30,12 @@ exp040 scalar working model 下的 q4/q4 matched raw `P_B_rec`；最新有效 ru
 4. 第 23 节是第一次挂起记录：暂挂“最低谱端精确收敛”，转向直接消融；
 5. 第 24--27 节是 Implementation iterations 08--11，完成初始化幅度与 q4/q1 detector data-model pairing controls；
 6. 第 28 节是第二次挂起记录：exp042 整体阶段性挂起，后续由 Phase 5 的参数拟合证据决定是否定向恢复。
+7. 第 29 节记录由 exp053 失败证据触发的定向恢复、truth-free control、唯一 failed run 与 post-failure correction；
+8. 第 30 节记录 corrected exp042 formal、exp053 raw handoff 接口修正、冻结 fitter 复验及新的 Inconclusive 数值边界。
 
-两次挂起互不覆盖：第 23 节保留最低谱端问题，第 28 节记录当前项目级暂停与恢复条件。以后发生新的实现、
-恢复或路线变化时，在文末追加新节，并同步更新本第 0 节；不得用第 0 节改写历史证据。
+两次挂起互不覆盖：第 23 节保留最低谱端问题，第 28 节记录项目级暂停与恢复条件；exp053 已满足第 28 节的定向恢复条件。
+后续恢复按顺序读取本节、第 29、30 节和 exp053 第 14--16 节。以后发生新的实现、恢复或路线变化时，
+仍只在文末追加新节并同步更新本第 0 节；不得用第 0 节改写历史证据。
 
 本文档只建立 `exp042` 的科学实验设计骨架。当前没有对应的冻结 YAML、公共实现、运行入口、
 测试、timestamped run、HDF5 reconstruction、metric、threshold 或 pass/fail 结论。以下所有尚未由
@@ -3537,3 +3545,461 @@ known-B reconstruction。恢复时只解决由下游证据指出的一个主要�
 原第 1--27 节文本保持不变。改动前全文为 `274322` bytes，SHA256
 `931F49BC2221F9E9753289F3F77C08776FFF8D0F6D957AFE2E186C26E1EEB43F`。以后第 0 节可以同步实时状态，第 1 节以后仍只允许在 EOF
 追加新记录。
+
+## 29. 2026-08-31 16:17：Implementation iteration 12 — exp053 feedback directed GN-CG control
+
+### 本轮目标与明确未做事项
+
+exp053 的 authoritative formal run 已满足第 28 节恢复条件：同一 frozen fixed-q8 fitter 对 `P_B_true` 给出正确 oracle interval，但对
+exp042 matched q4/q4 raw `P_B_rec` 给出 `[21.07016531442902, 21.07033167530035) um`，相对 oracle midpoint 偏移
+`+1.070190474 um`。本轮据此正式定向解冻 exp042，只构建一个 truth-free、measurement/operator-derived reconstruction-direction
+control，目标是在冻结后评估其是否降低 waist-sensitive candidate-manifold projection。
+
+本轮没有修改 exp053 fitter、threshold、mask、seed、budget 或 interval；没有拟合或输出 `D_waist`；没有启动 exp055、恢复全部旧消融、
+恢复 lowest-spectrum sweep、修改 B/scan/q4 detector/operator/exp040 working model、加入 blind B/noise/nuisance/calibration，或形成真实物理
+准确性声明。唯一 timestamped formal attempt 失败后按预登记的一次-run边界没有重跑，也没有删除、覆盖或补写失败 run。
+
+### 开始时检查的内容
+
+- 执行 `git -c safe.directory=E:/tgv_ptycho_sim status -sb`；staged 为空，用户已有 exp030/exp040/theory 修改、`sample_b.py` 修改、deleted
+  notebook、exp031/exp053 等 untracked 文件均保留。
+- 完整读取附件 `C:/Users/Mmm/Desktop/exp042.txt`（11445 bytes）；读取 `AGENTS.md`。
+- 按附件读取本文第 0、3、6、8、9、10、21、22、23、27、28 节和 exp053 文档第 0、2、3、4、5、6、7、9、13 节；读取 exp053
+  authoritative formal run 的 `run_state.json`、`metadata.json`、`metrics.json`、HDF5 tree/固定方向数据与四张图；读取 exp042 source run
+  `20260822_195139` 的 config/metadata/metrics、HDF5 matched-q4 branch/trajectory 和 figure。
+- 为避免重复已经做过的 control，额外定向读取本文第 20 节：它证明简单 equal-budget `60→120` continuation 只使弱 pairwise field
+  difference 缩小约 `1.71%`，因此 simple continuation 不能作为本轮新的主要方法。该信息是方法选择 blocker 的直接答案，读取后停止向更早
+  历史扩展。
+- 为逐项复现 exp053 的 amplitude/phase-sensitive 与 directional 定义，额外定向读取
+  `src/tgv_ptycho/inverse/exp053.py` 的 `_direction_metrics()` 和
+  `src/tgv_ptycho/inverse/waist_fit.py` 的 `replay_error_metrics()`；没有修改这两个文件。
+- 定向读取当前 exp042 YAML、`MatchedKnownBProbeOperator`、exact intensity Jacobian/adjoint、GN scale、reconstruction、spectral helper、runner
+  dispatch/writer/validator 和 targeted tests。没有重读 exp040、扫描全部 runs/src/tests、notebooks/reports/data，也没有联网。
+- 实现前原全文为 `278214` bytes，SHA256
+  `E3C7B43A92915906F6A31051AFB131D4FBD129DDD9434753CB474373D283AE69`，最后章节号 `28`。第 0 节按治理约定原位更新；第 1--28 节
+  历史字节单独锁定为 SHA256 `EF6E1AEA252BD510AB930F20ABAE6DEDD6B4CE2ED6859C15E2F24AFF8492CD93`。
+
+### 上一轮意见
+
+第 28 节把 exp042 挂起，但明确登记：若 `P_B_true` 可拟合而 matched raw `P_B_rec` 不可拟合，应只针对下游证据恢复一个主要问题。
+exp053 已精确触发该条件。本轮继续采用“不恢复全部消融、不恢复最低谱端 sweep”的意见；第 23 节未收敛最低 Ritz 问题继续挂起。
+
+### Change 01 — preregistered spectrally damped GN-CG reconstruction direction
+
+#### 改动前：主要矛盾、次要矛盾与必要性判断
+
+- 唯一主要矛盾：现有 raw reconstruction error 对 best candidate-manifold direction 的 real projection coefficient 为
+  `0.7344688088648637`，但该结构是有限优化、病态更新还是内部 operator defect 尚未确定；需要一个只改变 reconstruction search
+  direction 的最小 truth-free control。
+- 次要矛盾一：60-step 末端 measurement loss/residual 仍下降，说明存在 optimization-limited component；但第 20 节 continuation 后弱场差异
+  仍保留约 `98.29%`，说明单纯预算不足不是全部解释。
+- 次要矛盾二：第 21/22 节只支持 bounded projected weak-conditioning evidence，最低 Ritz 不收敛，不能宣称 null space 或用其选择真值方向。
+- 次要矛盾三：第 27 节表明 authoritative source 已是 matched q4/q4，q4/q1 mismatch 不是该 source 的直接根因；初始化消融也已证明多个
+  initializations 会进入相近 detector fit 但保留弱场差异。
+- 延后 regularizer family sweep、更多 seed/budget/threshold、operator-module expansion、scan/B redesign、blind/noisy cases 和任何 waist fit。
+
+#### 技术决策与理由
+
+- 排除 simple continuation：第 20 节已有同预算直接证据；再做相同 control 归因价值低。
+- 排除 lowest-spectrum solver：第 23 节已挂起，且它是 identifiability 诊断，不直接产生新的 reconstruction direction。
+- 暂不选显式 spatial prior/Tikhonov family：它会引入新的先验选择轴，可能把 waist bias 换成 regularization bias。
+- 最终选择 matrix-free spectrally damped Gauss--Newton conjugate gradient。它复用 exact `J`/`J^T`，用 measurement-derived curvature 改变
+  search direction；不改变 forward、loss 或 data。既有 truth-free spectral evidence 显示曲率跨度大，因此这是比重复 continuation 更直接的
+  单因素控制，但仍不预先宣布弱条件数为根因。
+- 在查看新 control 的 simulation-only 结果前冻结：baseline 为原 60-step GN-scaled Armijo；control 为 6 outer iterations、每次最多 8 CG
+  actions；用 seed `20260854` 的 6-step power iteration 在相同初始化估计一次谱半径，固定 damping 为 `1e-4 * rho_hat`；CG relative
+  residual tolerance `0`（固定预算，只有 exact/curvature safety 可提前停止）；复用 Armijo，initial line-search scale `1`。
+- 在首试 Armijo 接受时，两支 nominal operator-action units 均为 `61`：baseline `1+60`，control `1+6+6*(8+1)`；两支共享
+  backtracking safety，实际 units 必须记录。control optimizer API 不接收 `P_B_true`、`D_waist_true`、oracle interval 或 exp053 directions。
+- 三个 exp053 fixed directions、truth 和旧 spectral weak field 只在两支 reconstruction 都完成后加载；primary post-freeze descriptive criterion
+  固定为 `abs(best-candidate real projection coefficient)` 是否下降，不设置 numeric scientific pass/fail threshold，不据此选择第二支或追加预算。
+
+#### 创建或修改的文件
+
+- `configs/experiments/exp042_TGV_3d_multislice_probe_reconstruction.yaml`：切换为
+  `exp053_feedback_damped_gauss_newton_control`，登记单因素、action budget、truth boundary、locked exp053/spectral provenance 和新图。
+- `src/tgv_ptycho/recon/exp042.py`：增加 mean-normalized GN normal action、deterministic power estimate、real-inner-product damped CG、GN-CG
+  reconstruction，以及与 exp053 同定义的 simulation-only probe/directional metrics；未改 operator/adjoint/forward/shared library。
+- `scripts/run_exp042_probe_reconstruction.py`：增加 dedicated runner、hash-locked post-freeze loader、metrics/HDF5/raw branch、Pillow 六-panel figure、
+  artifact validator 和 failed run preservation。
+- `tests/test_exp042_probe_reconstruction.py`：增加 normal-operator symmetry/PSD、spectral/CG determinism、descent、truth boundary、direction metric
+  definition、runner/source/HDF5/raw-vs-aligned contract；旧 detector runner test 显式恢复其历史 mode。
+- 本文第 0 节和本第 29 节。未修改 exp053/exp040/README/roadmap/notebooks/reports 或项目级 HDF5 schema。
+
+#### 验证命令与结果
+
+```powershell
+# 失败的环境调用；直接 exe 缺少 Conda Library/bin DLL 上下文
+D:\anaconda3\envs\tgv_ptycho_sim\python.exe -m pytest -q tests/test_exp042_probe_reconstruction.py -k "config_and_shapes or spectrally_damped or exp053_directional_metrics"
+D:\anaconda3\envs\tgv_ptycho_sim\python.exe -m pytest -q tests/test_exp042_probe_reconstruction.py::test_exp053_feedback_runner_writes_raw_control_and_truth_boundary -s
+D:\anaconda3\envs\tgv_ptycho_sim\python.exe -m pytest -q tests/test_exp042_probe_reconstruction.py
+
+# 权威 Conda 环境验证
+D:\anaconda3\Scripts\conda.exe run -n tgv_ptycho_sim python -m pytest -q tests/test_exp042_probe_reconstruction.py
+D:\anaconda3\Scripts\conda.exe run -n tgv_ptycho_sim python -m ruff check src/tgv_ptycho/recon/exp042.py scripts/run_exp042_probe_reconstruction.py tests/test_exp042_probe_reconstruction.py
+```
+
+- 直接 `python.exe` 三次分别在 `np.vdot`、Matplotlib affine/LAPACK 和未修改的 `np.linalg.eigh` 路径出现 Windows native
+  `0xc06d007f`；这证明是 Conda DLL 搜索上下文问题，不是数值 assertion failure。新图改用确定性 Pillow raster，避免本轮 artifact 再依赖
+  Matplotlib 小矩阵 LAPACK；旧图函数未改。
+- 正式 run 前使用仓库既有 `conda run`：targeted suite `14 passed in 81.69s`；scoped Ruff `All checks passed!`。
+- 没有运行 full pytest：影响面限于 exp042 config/module/runner/test，targeted suite 覆盖 operator、方法和 artifact；没有改 shared
+  forward/optics/shift/IO。
+
+#### 改动后重新评估
+
+- 方法实现、determinism、truth boundary、nominal budget 和 tiny artifact contract 已关闭；正式 outcome 尚未关闭。
+- 唯一 formal attempt 的两支 reconstruction 已在内存完成，但在任何 simulation-only metrics/HDF5/figure 持久化前，被一个新增的旧 spectral
+  primary exact-equality gate 中止。不能用未持久化结果形成 control 结论，也不能给 exp053 新 raw field。
+- 因此原主要矛盾“该 control 是否降低 waist-sensitive projection”仍未关闭；本轮新增失败首先属于 artifact/provenance contract，而不是
+  已证明的 reconstruction algorithm failure。
+
+### Change 02 — post-failure cross-endpoint spectral provenance correction
+
+#### 继承 Change 01 的评估与改动前判断
+
+Change 01 失败 gate 假定第 22 节 spectral primary 必须与 exp053 baseline raw field 逐元素相同。只读核对显示二者 dataset-byte SHA256
+分别为 `3DC138D6A82150ACF1CD704AB5B824D4083E1AB06322C7D20F19A4E6BA188CBF` 和
+`F6323C7A7676CEA2F8FD8D99EC2CEC0CA6C4C9234BD49F122F17BEDE4DDDC738`，relative L2
+`0.04903098520003472`、max absolute difference `0.15595252834602924`。这不是 serialization noise；旧 weak mode 是另一 local endpoint
+的证据。
+
+本 Change 的唯一主要矛盾是修正过严 provenance gate，使“跨 endpoint 的旧 weak-field overlap”被诚实标记为定性 transfer，而当前 endpoint
+的 direct Jacobian gain 仍由当前 operator/field 重算。次要矛盾是本轮已经消耗唯一 formal run；明确不通过删除 failed run 或未授权第二次 run
+规避该边界。
+
+#### 修改、验证与改动后评估
+
+- runner 不再要求 prior spectral primary exact equal；改为持久化两者 dataset hash、exact flag、relative L2、
+  `prior_weak_direction_transfer_is_cross_endpoint=true` 和解释边界。field-space overlap 仍可计算，但不能称为当前 endpoint 已验证 eigenmode；
+  current-endpoint fixed-direction Jacobian gains 单独重算。
+- tiny runner test 故意给 spectral primary 加非零差异，验证 runner 完成且上述 limitation/flags 进入 metrics/HDF5；focused test
+  `1 passed in 4.60s`。
+- post-correction targeted suite：`14 passed in 88.99s`；scoped Ruff：`All checks passed!`。
+- 过严 gate 已证明不是科学主要原因并在代码/测试层关闭；formal artifact completion 仍未关闭，因为按一次-run约定没有重跑。这是下一轮唯一
+  主要矛盾。
+
+### Operator-consistency 检查
+
+- targeted suite 重跑 shape/dtype/axis、truth replay、detector constant/sum/positivity/node geometry、finite-B constant-zero boundary、linear/shift/q4
+  adjoint、intensity-Jacobian adjoint/directional finite difference、full-loss gradient、zero residual、truth fixed point 和 deterministic matched case；
+  全部包含在两次 `14 passed` 中。
+- 新 GN normal operator 测试验证 real-inner-product symmetry 与 PSD；power estimate/CG/reconstruction exact deterministic；CG direction 与 gradient
+  real inner product 为正；truth flag 反例必须抛出 `ValueError`。
+- exp053 三方向 metric test 与其定义一致：构造 collinear error 得到 real cosine/coherence `1`、projection coefficient `0.25`。
+- 正式 attempt 在 post-freeze source audit 失败；没有产生可审计的正式 control operator metrics，不能把测试数值替代 formal metrics。
+
+### Development run 与 artifacts
+
+唯一新 formal attempt：
+
+`runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260831_161037`
+
+- `run_state.json`：`status=failed`、`artifacts_validated=false`；error 为
+  `RuntimeError: The prior spectral primary probe changed.`；run-state SHA256
+  `B434E53801469EA1F3EB842FBC5DD5EAA4DD34E61751F309134AC30DB7657DAC`。
+- 保存了 `config.yaml`（16245 bytes，SHA256
+  `59860425AFAB3D07D6DA5D44A41085B3FA24E9EAFF6EE317ABE06B6BF0BA7276`）和完整 traceback；`figures/`、`outputs/` 目录为空。
+- 无 `metadata.json`、`metrics.json`、HDF5 或 figure；因此没有新 HDF5 tree/字段，没有新的 raw matched-q4 `P_B_rec` dataset path/hash，也没有
+  JSON/HDF5 consistency 可声称通过。失败 run 未删除、未覆盖、未手工补写。
+- 附件要求的 exp053 四张图和旧 exp042 source 图均用 original/read-back 目视检查：四 starts 收敛到相同约 `21.07 um` component，oracle
+  约 `20 um`，global profile/interval/directional 图与 JSON 数值一致，图像无损坏或明显截断。
+
+### 当前 metrics
+
+- authoritative baseline（simulation evaluation only）：detector relative residual
+  `0.3567623010258413 -> 0.008857188126643553`；raw complex relative L2
+  `0.13937201182884237`；amplitude relative L2 `0.10082724989726073`；amplitude-weighted phase-sensitive relative L2
+  `0.10329026088724083`。
+- exp053 baseline fixed directions（simulation evaluation only）：
+  - `minus_0p125um`：real cosine `-0.41943878672529994`，complex coherence `0.4386450230970479`，real projection
+    coefficient `-1.8608567722904306`；
+  - `plus_0p125um`：`0.010101456696820018`、`0.1645796440902876`、`0.05285296412654648`；
+  - `best_candidate_manifold`：`0.25774500074556334`、`0.3826634030345303`、`0.7344688088648637`。
+- 新 control：无正式持久化 detector residual、probe errors 或 directional metrics；不得从内存中已执行但未审计的 reconstruction 推断改善或失败。
+- 方法冻结证据只支持：现有轨迹包含 remaining optimization component，弱 pairwise component 对 simple continuation 不敏感，因而病态曲率是
+  合理但尚未被 causal control 确认的机制。既有 lowest-Ritz 不收敛，不能把它提升为已证明 root cause/null space。
+
+### 失败、限制与未关闭问题
+
+- 本轮正式 attempt 失败且没有可交接 artifact；exp053 当前不能复验新 control。失败发生在 simulation-only spectral cross-endpoint audit，
+  不代表 GN-CG 数值失败，也不代表它会改善 waist bias。
+- prior weak field 来自与 exp053 baseline 相差约 `4.90%` 的 local endpoint；其 field-space overlap 以后只能作跨 endpoint 定性证据。当前 endpoint
+  是否同样弱必须以重新计算的 direct gain 为准，不能复活最低谱端 sweep。
+- 单一、noiseless、known-B、matched q4 case 和 frozen scalar working model 边界不变；`reference_validated=false`、
+  `full_tgv_reference_authorized=false`。
+- Pillow 新图只服务本轮稳定 artifact 输出，不是全项目绘图架构决定；直接 exe 的 DLL 失败要求继续使用 `conda run`。
+
+### 改动后总体优先级
+
+- 下一轮唯一主要建议：保持当前 YAML/method/budget/truth boundary 完全不变，在用户允许新的 timestamped run 后只执行一次 corrected formal
+  validation run；先确认 cross-endpoint limitation 被持久化，再审计 raw/HDF5/directional metrics。必要性是补齐本轮唯一缺失的 authoritative
+  artifact；预期作用是决定是否把新 raw `P_B_rec` 交给冻结 exp053 原样复验。
+- 当前不建议增加第二个 control、调 damping/CG/budget、恢复 spectral sweep、修改 exp053 或运行 exp053 fitter。若 corrected run 仍在同一
+  artifact contract 失败，保留证据并停止；若成功，也只根据预登记 fixed-direction comparison决定是否 handoff，不在 exp042 内拟合 waist。
+- 这仍是 exp042 内的定向恢复，不形成新研究问题；只有 control artifact 完成而 bias 未改善时，才重新判断是否需要新 reconstruction/measurement
+  design 问题。
+
+### 下一轮快速恢复上下文
+
+- 当前 authoritative appended section：本文第 29 节；第 0 节为实时状态入口。
+- 本轮完成的 Change：Change 01 GN normal/power/damped-CG/control runner/HDF5 contract；Change 02 将错误的 spectral-primary exact gate 改为
+  cross-endpoint limitation。
+- 本轮修改文件：exp042 YAML、`src/tgv_ptycho/recon/exp042.py`、`scripts/run_exp042_probe_reconstruction.py`、
+  `tests/test_exp042_probe_reconstruction.py` 和本文。
+- 当前有效 config：上述 YAML，SHA256 `2A3250CDE1D7176F6D4FE120CE68888738558B09DB28616EB7F79F353BD943B5`；
+  baseline 60、power 6、outer 6、CG 8、relative damping `1e-4`，不得先调参。
+- 最新有效可复用 run 仍为 `runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260822_195139`；最新 attempt
+  `runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260831_161037` 为 failed/invalid，无 control HDF5。
+- 已通过：post-correction targeted pytest `14 passed in 88.99s`，focused artifact regression `1 passed in 4.60s`，scoped Ruff
+  `All checks passed!`；直接 exe 的 `0xc06d007f` 是已记录失败，权威命令必须用 `conda run`。
+- 已确认不需重跑：exp040 reference/Helmholtz、旧 q4/q1、初始化、continuation、lowest-spectrum controls；除非 operator/config 改变，也无需新增
+  方法或重读 exp040。
+- 当前未关闭的唯一主要矛盾：没有 corrected formal control artifact，因此无法比较新 detector/probe/directional metrics或交给 exp053。
+- 当前次要矛盾：prior weak field 是 cross-endpoint；直接 exe DLL 上下文；Pillow figure 是局部兼容实现。三者都不应在 formal rerun 前扩张。
+- 下一轮推荐最小改动：原则上不改代码/config；先读本节、failed `run_state.json` 和当前四个 exp042 文件，运行 targeted pytest/Ruff 后，在用户
+  授权新的 timestamped run 时执行一次同配置 runner并完成 artifact audit。
+- 下一轮最小读取集合：`AGENTS.md`；本文第 0、29 节；当前 YAML/module/runner/test；failed run 的 config/run_state；exp053 authoritative
+  `run_state.json`/`metrics.json` 和 locked HDF5路径。只有 hash/provenance 冲突才重读 exp053第13节。
+- 只有 forward/operator/B/scan/q4 readout/reference flags 改变、摘要与 artifact 冲突或 corrected run 出现对应 regression，才定向读取 exp040；
+  找到答案即停止。
+- 明确不重新扫描：exp040 全文/old、全部 runs、整个 src/tests、notebooks、reports、data、exp041/exp05x 其他历史和无关 theory notes。
+
+### Git 状态
+
+- exp042 YAML/module/runner/test/本文均为本地 unstaged 修改；staged 为空。
+- 未执行 `git add`、commit、push、PR、merge 或 branch 操作；当前 branch 未改变。
+- 用户原有 staged/unstaged/untracked/deleted 内容未回退、覆盖、删除或暂存；failed run 由 Git ignore，不提交。
+
+### Append-only 验证基线
+
+最终更新第 0 节后、追加本节前，文档为 `279012` bytes，SHA256
+`E073AC90173519B836E8F453239226D7C06D5DB07C5BA1D3223E5D537DC427B3`；第 1--28 节历史后缀 SHA256 仍为
+`EF6E1AEA252BD510AB930F20ABAE6DEDD6B4CE2ED6859C15E2F24AFF8492CD93`。本节只追加在真实 EOF；下面的独立验证 note 将记录 append 后结果。
+
+### Append-only 独立验证 note
+
+- 首次追加本节后文件为 `299234` bytes，SHA256
+  `E160194D67DAB03637512F709B67D3114CDE9D5EB6FF44C79E29AB8494C6BD85`。
+- 重新读取前 `279012` bytes，SHA256 仍为
+  `E073AC90173519B836E8F453239226D7C06D5DB07C5BA1D3223E5D537DC427B3`，`PrefixMatches=true`；第 1--28 节原字节区间 SHA256
+  仍为 `EF6E1AEA252BD510AB930F20ABAE6DEDD6B4CE2ED6859C15E2F24AFF8492CD93`。
+- heading 尾序为 `26→27→28→29`；所有新增内容均位于旧 EOF 之后，第 1--28 节没有修改、删除、重排或润色。
+
+## 30. 2026-08-31 18:58：Implementation iteration 13 — corrected formal、exp053 handoff 与冻结 fitter 复验
+
+### 本轮目标与明确未做事项
+
+本轮继承第 29 节唯一建议：不改 exp042 方法、YAML、预算或 truth boundary，只执行一次 corrected timestamped validation，审计 raw control
+artifact，并在成功时把它交给冻结 exp053 fitter 原样复验。用户本轮同时授权 exp040/exp053 的反馈与对接，因此在 exp053 loader 暴露实际接口
+blocker 后，只做 strict raw matched-q4 双源兼容和 artifact-validator correction；没有修改 exp040 forward/reference、exp053 fitter/loss/threshold/
+starts/41-call budget/q8 generator/status logic，也没有启动 exp055、blind B、noise/nuisance、lowest-spectrum sweep 或任何 D_waist estimator in exp042。
+
+### 开始时检查的内容
+
+- 执行 `git -c safe.directory=E:/tgv_ptycho_sim status -sb`，确认 branch 仍为
+  `codex/exp051-q8-plateau-interval-fit`；用户既有 exp030/exp040/theory/sample-B 修改、deleted notebook、exp031/exp053 untracked 文件均保留。
+- 按第 29 节恢复协议只读本文第 0、29 节、failed run `20260831_161037/run_state.json`、当前 exp042 YAML/module/runner/test 的定向符号、
+  exp053 frozen config/loader/test 相关函数及 exp053 第 0、13 节。没有重读 exp040 全文、扫描全部 runs/src/tests、notebooks/reports/data，
+  也没有联网。
+- exp042 文档本轮前为 `299799` bytes、SHA256
+  `A9647DAEC2318F528B13D477ED96FE520EB9430D2FDA5943E00BFC0019BB35FB`；第 1--29 节历史字节区间为 `296650` bytes、SHA256
+  `7829353040918740A47AC75D818B7BDF7319635C6B7F2CD56CF280A13D899592`。exp053 文档本轮前为 `24904` bytes、SHA256
+  `E94F4A78FC1D20B1BE8D8A77EF291D19648E28BCC99951F57E86DEFD41BF7DD1`。
+
+### 上一轮意见
+
+第 29 节把“缺少 corrected formal control artifact”登记为唯一主要矛盾，并要求不先调参、只运行一次同配置验证；成功后才把 raw field 交给
+冻结 exp053。该意见仍成立并被完整采用。第 23 节 lowest-Ritz 问题继续挂起；本轮没有恢复它。
+
+### Change 01 — corrected exp042 formal validation
+
+#### 改动前：主要矛盾、次要矛盾与必要性判断
+
+- 唯一主要矛盾：post-failure correction 已通过测试但没有 authoritative raw control artifact，无法判断方向 control 或 handoff exp053。
+- 次要矛盾：prior weak field 是 cross-endpoint 定性证据；直接 `python.exe` 缺 Conda DLL context；Pillow 图是局部兼容实现。
+- 明确延后 damping/CG/budget 调参、第二个 reconstruction control、lowest-spectrum、scan/B/operator 改动和任何 waist fit in exp042。
+- 当前改动比其他候选更必要，因为它只补齐第 29 节已实现方法的缺失证据，不改变单因素归因。
+
+#### 技术决策与理由
+
+根目录 exp042 YAML SHA256 仍为 `2A3250CDE1D7176F6D4FE120CE68888738558B09DB28616EB7F79F353BD943B5`；保持 baseline 60、
+power 6、outer 6、CG 8、seed `20260854`、relative damping `1e-4` 和 truth-free boundaries。使用 `conda run` 先过 targeted tests/Ruff，
+随后只执行一次 corrected formal。实际 CG 因 curvature/exact safety 在后两 outer 提前终止为 4/1 steps，control action units 为 `50`，
+baseline 为 `61`；因此 artifact 如实写 `nominal_equal_budget_observed=false`，不事后追加动作补齐。
+
+#### 创建或修改的文件
+
+Change 01 没有修改 exp042 YAML/module/runner/test；只自然生成新 run，并在本轮结束更新本文第 0 节、追加本第 30 节。第 29 节 failed run
+未删除、覆盖或补写。
+
+#### 验证命令与结果
+
+```powershell
+D:\anaconda3\Scripts\conda.exe run -n tgv_ptycho_sim python -m pytest -q tests/test_exp042_probe_reconstruction.py
+D:\anaconda3\Scripts\conda.exe run -n tgv_ptycho_sim python -m ruff check src/tgv_ptycho/recon/exp042.py scripts/run_exp042_probe_reconstruction.py tests/test_exp042_probe_reconstruction.py
+D:\anaconda3\Scripts\conda.exe run -n tgv_ptycho_sim python scripts/run_exp042_probe_reconstruction.py --config configs/experiments/exp042_TGV_3d_multislice_probe_reconstruction.yaml
+```
+
+- targeted pytest：`14 passed in 71.03s`；scoped Ruff：`All checks passed!`。
+- formal：`runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260831_183139`，runtime `61.3886841 s`，
+  `status=complete`、`artifacts_validated=true`。
+- 首个独立 HDF5 audit 命令错误假定 reconstruction branch 直接含 `final_loss`，得到只读 `KeyError`；实际标量在 `/entry/metrics/...`，
+  修正路径后 JSON/HDF5 exact。该诊断失败不改变 run。
+- 未运行 full pytest：Change 01 无代码变化；Change 02 的共享影响由 exp053 targeted suite覆盖。
+
+#### 改动后重新评估
+
+本 Change 的主要矛盾已关闭：新 raw control `(96,96) complex128` finite，dataset SHA256
+`194C7B950F8DCF2BF94212A6F63270296BC9EC79AE0C04ED557C864F5FE8EB07`，完整 provenance 与 simulation-only copy 分离，可正式 handoff。
+新证据支持该 reconstruction direction 同时降低 detector/probe/directional metrics，但不等价于真实物理准确性或腰径 Passed。
+
+### Change 02 — exp053 strict handoff compatibility 与冻结 fitter 复验
+
+#### 继承 Change 01 的评估、改动前判断与必要性
+
+Change 01 已产生合法 raw field。接口 preflight 随即证明 exp053 用旧路径字符串
+`.../detector_quadrature_ablation/.../matched_q4/P_B_rec` 作为 matched-q4 身份，并硬读旧 branch HDF5 group；新 field 虽由同一 matched-q4
+operator/data 生成，但路径为 `.../exp053_feedback_control/.../spectrally_damped_gn_cg/P_B_rec`，因此被拒绝。新的唯一主要矛盾是严格而不脆弱地
+恢复 raw handoff；次要矛盾是 source hash/commit 全量换锁、Inconclusive artifact 的空 bisection 必须可保存、下游 bias 尚未知。
+
+#### 技术决策与理由
+
+- `validate_exp053_config()` 只允许两个 exact raw paths：历史 matched-q4 branch 和新 feedback GN-CG branch；forbidden aligned/truth/q1 tokens及
+  plane/grid/q4 identity继续强制。
+- 新 branch 不复用不存在的旧 operator group，而同时要求 source config 的 R8/q4 provenance、HDF5
+  `matched_q4_data_and_operator=true`、same B/scan/q4 design/metrics、四个 truth-use flags false、run-state raw path/hash exact；旧 source contract
+  保持兼容。
+- exp053 config 只替换 source run/path、五个 artifact hashes、raw/truth dataset hashes及 source commit；fitter及所有数值参数不变。
+- runner validator 从硬编码“必须四支 bisection”改为与实际 result bisection tree exact 对比，使预注册 status logic 产生的合法 Inconclusive/空
+  bisection 可审计保存；没有放宽任何 numerical gate。
+
+#### 创建或修改的文件
+
+- `configs/experiments/exp053_TGV_3d_multislice_reconstructed_probe_q8_cell_interval_fit.yaml`；
+- `src/tgv_ptycho/inverse/exp053.py`；
+- `scripts/run_exp053_reconstructed_probe_q8_cell_interval_fit.py`；
+- `tests/test_exp053_reconstructed_probe_q8_cell_interval_fit.py`；
+- exp053 文档第 0、14 节；本文第 0、30 节。
+
+没有修改 exp040 文档、forward/optics/sample/IO、exp053 candidate generator/optimizer、README/roadmap/notebooks/reports 或项目级 HDF5 schema。
+
+#### 验证命令、失败与结果
+
+```powershell
+D:\anaconda3\Scripts\conda.exe run -n tgv_ptycho_sim python -m pytest -q tests/test_exp053_reconstructed_probe_q8_cell_interval_fit.py
+D:\anaconda3\Scripts\conda.exe run -n tgv_ptycho_sim python -m ruff check src/tgv_ptycho/inverse/exp053.py scripts/run_exp053_reconstructed_probe_q8_cell_interval_fit.py tests/test_exp053_reconstructed_probe_q8_cell_interval_fit.py
+D:\anaconda3\Scripts\conda.exe run -n tgv_ptycho_sim python scripts/run_exp053_reconstructed_probe_q8_cell_interval_fit.py --config configs/experiments/exp053_TGV_3d_multislice_reconstructed_probe_q8_cell_interval_fit.yaml
+```
+
+- 初次只读 preflight 在旧 exact-path gate 得到预期 `ValueError`，据此实现双源 contract；loader focused test `1 passed in 1.09s`。
+- 首次 Ruff 因新增 constants 插在一个 import 前报告 `I001/E402`，机械移回 import block；第二次 Ruff仍报 import sort，使用 scoped
+  `ruff --fix` 只整理该 import block。最终 scoped Ruff：`All checks passed!`。
+- 第一次完整 suite 因旧结果断言和 validator 固定 bisection 得到 `2 failed, 3 passed`；修正后第二次仅剩 tiny test 的旧 `Failed` 断言，
+  `1 failed, 4 passed`；最终 `5 passed in 37.69s`。这些失败均保留在本记录，不把新 Inconclusive改写成 Passed。
+- 唯一新 exp053 formal：`runs/exp053_TGV_3d_multislice_reconstructed_probe_q8_cell_interval_20260831_185434`，runtime
+  `33.8350743 s`，`status=complete`、`artifacts_validated=true`、`experiment_status=Inconclusive`。
+
+#### 改动后重新评估
+
+接口主要矛盾已关闭，原 reconstruction-induced waist bias 被证明大幅降低；但 exp053 数值闭合成为下一轮唯一主要矛盾。四支均正好 41 calls，
+前三支到 q8 cell `139603`，`start_03` 到 cell `139608`，其 final best-field relative L2 `1.673066e-4`，故
+`all_final_seeds_qualify=false`、`interval_agreement=false`，bisection未启动。该问题属于冻结 fitter 的 bounded numerical convergence，不是 exp040
+reference failure，也不能通过本轮 post-hoc 放宽 gate。
+
+### Operator-consistency 检查
+
+- exp042 formal：truth replay/loss/gradient/update均 `0`；linear、shift、q4 quadrature、intensity-Jacobian adjoint errors分别约
+  `1.45e-15`、`5.68e-16`、`0`、`4.69e-16`；full-loss gradient error `1.23e-9`；detector sum error `0`；finite-B edge modulation `0`；
+  deterministic repeat `0`，所有 arrays finite。
+- source audit：exp053 HDF5 raw input 与 exp042 raw control逐元素 exact，hash为上述 `194C...B07`；source truth hash仍为
+  `FA61264AF0D96BF3393EC461E2147992FDE6926D0132B2346090790E40E8EBFD`。raw field不含 truth/global-phase alignment，truth只在 simulation
+  evaluation。
+- prior weak-field transfer仍明确是 cross-endpoint；当前 endpoint direct Jacobian gains已重算，没有恢复 lowest-Ritz/null-space声明。
+
+### Development run 与 artifacts
+
+exp042 authoritative run：`runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260831_183139`。
+
+- `config.yaml` / metadata / metrics / HDF5 / figure SHA256分别为 `598604...7276`、`5B056A...7B2B`、`195B00...15A`、
+  `C48588...37D`、`F75A93...F47`；run-state SHA256 `75E706...05C`。
+- HDF5 raw path：`/entry/reconstruction/exp053_feedback_control/branches/spectrally_damped_gn_cg/P_B_rec`；另有独立
+  `simulation_evaluation_only/P_B_rec_global_phase_aligned`，未覆盖 raw。关键 groups包括 data/instrument/sample/truth、baseline/control trajectories、
+  design、postfreeze directions/source hashes和 metrics；无项目级 schema change。
+- 六 panel figure目视/read-back通过，无截断或损坏。
+
+exp053 downstream formal：`runs/exp053_TGV_3d_multislice_reconstructed_probe_q8_cell_interval_20260831_185434`。
+
+- HDF5 `32,748,336` bytes，SHA256 `712A67A3A586E90A1CB5D27845FA8332176AD9D3E793AEC993D9CB7D5F11318C`；754 datasets、
+  466 numeric datasets全部 finite；`/entry` children为 config/data/instrument/metadata/metrics/reconstruction/sample/truth，data为空，无伪 processing group。
+- 保存 source raw probe/hash、113-entry candidate cache、四支41-call tracks、reported interval、loss/comparison/gates/directions；bisection group自然为空。
+- 四张 PNG 的 SHA256与 run-state一致，read-back/目视均通过；tracks图清楚显示 start_03停在邻近不同 cell。
+
+### 当前 metrics
+
+- exp042 baseline→control：detector residual `0.008857188126643553 → 0.0033987748806787914`；final loss
+  `1.9277964661849684e-5 → 2.838665641249914e-6`；raw complex error `0.13937201182884235 → 0.10107841397548276`；
+  amplitude error `0.09883426695363687 → 0.07097707251132188`；phase-sensitive error `0.09667481953424807 → 0.07103722696546975`。
+- exp042 simulation-only fixed directions：best-candidate real projection `0.7344688088648637 → 0.3425204000063764`，absolute ratio
+  `0.46635118588051216`；minus-0.125-um `-1.8608567722904301 → -0.9414754201439668`；plus-0.125-um
+  `0.05285296412654648 → 0.01687068887756798`。三方向绝对 projection均下降。
+- exp053 reported interval `[20.00301349202269, 20.00327036622095) um`，width `0.2568741982597806 nm`；truth distance
+  `3.013492022687817 nm`，oracle interval distance `2.8701515540631407 nm`，endpoint Hausdorff `3.1270257523229213 nm`，
+  simulation-only accuracy gate为 true。
+- exp053 `L_rec(true)=0.010410295555232872`、`L_rec(best)=0.010391415826649259`，relative improvement
+  `0.1813563168%`；numerical-controls gate false，故 formal为 Inconclusive。所有 truth-aided指标只作 simulation evaluation，不进入 fitter/selection/stopping。
+
+### 失败、限制与未关闭问题
+
+- downstream accuracy恢复是单一 deterministic/noiseless/known-B/matched q4 case中的因果 control结果，不能外推到 noise、blind B、真实 detector或真实 TGV。
+- exp053仍有一个未闭合起点；现阶段既不能宣布 waist-fit Passed，也不应因约3-nm truth distance而越过预注册 numerical gates。
+- actual action budget 50 vs 61削弱“严格等算力”表述，但 control在更少动作下改善，不构成对改善的有利算力偏置；仍需如实保留。
+- exp040状态不变：`reference_validated=false`、`full_tgv_reference_authorized=false`。本轮 candidate replay/operator consistency没有提供恢复
+  Helmholtz/reference validation的新证据，因此未修改 exp040 文档或 frozen conclusions。
+
+### 改动后总体优先级
+
+- 下一轮唯一主要矛盾：在 exp053 内对四起点做一个预注册、truth-free、equal-budget numerical-closure control，判断 start_03 未进入共同 q8
+  component是否只是41-call pattern-search budget不足。必要性：当前 accuracy已恢复，但 formal仍由数值 gate阻断；预期作用：闭合或诚实确认多起点稳定性。
+- 最多三个次要事项：复核 extension仍不改变 candidate cache/threshold/status logic；保持 raw source hash与四支同预算；若仍不闭合，记录
+  Inconclusive并停止，不转向 threshold/seed chasing。
+- 当前明确不建议继续改 exp042 GN-CG/damping、恢复 lowest-spectrum、改 exp040/scan/B、放宽 exp053 qualifier或启动 exp055。
+- exp042定向恢复问题已经回答，可再次挂起；下一步属于 exp053 bounded numerical control，不是新的物理研究问题。只有数值 control仍失败且证据指向
+  estimator结构时，才考虑新实验问题。
+
+### 下一轮快速恢复上下文
+
+- 当前 authoritative exp042 section：第 30 节；第 0 节为实时入口。完成的 Change为 corrected exp042 formal与 exp053 strict raw handoff/frozen rerun。
+- 本轮修改文件：exp053 YAML、`src/tgv_ptycho/inverse/exp053.py`、exp053 runner/test、exp042与exp053文档；此前 exp042 YAML/module/runner/test
+  保持第 29 节状态，本轮未改。
+- 当前 exp042 config仍为 SHA256 `2A3250...43B5`；最新有效 exp042 run为 `20260831_183139`，raw path/hash为上述 `...gn_cg/P_B_rec` / `194C...B07`。
+- 当前 exp053 config根文件 SHA256 `DF80204E81946713AF42AE567BC6908B81B59423C8D00445B60AC7A27500855D`；最新有效 formal为
+  `20260831_185434`，状态 Inconclusive但 artifacts validated。
+- 已通过：exp042 `14 passed` + scoped Ruff；exp053 focused loader `1 passed`、最终 targeted `5 passed` + scoped Ruff；无需重跑 exp040 reference、
+  q4/q1、初始化、continuation、lowest-spectrum或本轮两个 formal。
+- 当前未关闭主要矛盾：exp053 start_03在固定41-call预算下未进入共同 component。次要矛盾：actual exp042 action budget不等；cross-endpoint weak field；
+  direct-exe DLL context。
+- 下一轮推荐最小改动：只在 exp053 预注册一个所有四 starts完全相同的 bounded budget-extension control；先定规则后看结果，不改 threshold/seed/start。
+- 最小读取集合：`AGENTS.md`；exp042第 0、30 节；exp053第 0、13、14 节；exp053 YAML/inverse runner/test；两个最新 run的 run_state/metrics和锁定 raw path。
+  只有 source hash/operator/B/scan/q4语义冲突才重读 exp040对应 R8/结论边界；否则不重读 exp040。
+- 明确不扫描全部 runs/src/tests、exp040全文/old、notebooks/reports/data、exp041/exp05x其他历史或无关 theory notes。
+
+### Git 状态
+
+- staged为空；本轮所有修改保持 local unstaged/untracked。没有执行 `git add`、commit、push、PR、merge或branch操作。
+- 用户原有 modified/deleted/untracked内容均未回退、覆盖、删除或暂存；两个新 formal runs由 Git ignore，历史 failed run保留。
+
+### Append-only 验证基线
+
+更新第 0 节和追加本节前，本文为 `299799` bytes、SHA256
+`A9647DAEC2318F528B13D477ED96FE520EB9430D2FDA5943E00BFC0019BB35FB`；从 `## 1.` 开始的第 1--29 节历史区间为
+`296650` bytes、SHA256 `7829353040918740A47AC75D818B7BDF7319635C6B7F2CD56CF280A13D899592`。下面独立 note记录历史区间与旧 EOF验证。
+
+### Append-only 独立验证 note
+
+- 首次更新第0节并追加第30节后，本文为 `317115` bytes、SHA256
+  `9772BDC5EFEDC5262566ED356E18851C8AFE9BFDE356865D0FE974FBFFE3D4E9`。
+- 新文件从新 `## 1.` 起的前 `296650` bytes SHA256仍为
+  `7829353040918740A47AC75D818B7BDF7319635C6B7F2CD56CF280A13D899592`，与本轮前第1--29节历史区间 exact；下一 byte为新增分隔
+  `LF`，随后才是第30节。因此历史内容未修改、删除、重排或润色。
+- heading尾序为 `28→29→30`；除治理约定允许原位更新的第0节外，本轮文档改动只发生在旧 EOF之后。

@@ -1,10 +1,10 @@
 experiment:
   id: exp042
-  role: development_known_b_probe_reconstruction_baseline
-  status: Development baseline / No scientific pass-fail conclusion
+  role: directed_exp053_feedback_known_b_probe_reconstruction_control
+  status: Directed development control / No scientific pass-fail conclusion
 
 execution:
-  mode: detector_quadrature_three_branch_control
+  mode: exp053_feedback_damped_gauss_newton_control
 
 provenance:
   source_experiment: exp040
@@ -133,6 +133,37 @@ reconstruction:
     truth_used_by_continuation: false
     truth_used_by_diagnostic: false
     scientific_thresholds_preregistered: false
+  exp053_feedback_control:
+    enabled: true
+    role: truth_free_matrix_free_spectrally_damped_gauss_newton_cg_control
+    trigger: exp053_reconstructed_probe_interval_accuracy_failure
+    changed_factor: reconstruction_search_direction_only
+    baseline_algorithm: batch_complex_gradient_descent_gn_scaled_armijo
+    control_algorithm: batch_spectrally_damped_gauss_newton_cg_armijo
+    same_exp040_source_b_scan_q4_data_operator_initialization_seed: true
+    baseline_iterations: 60
+    control_outer_iterations: 6
+    spectral_radius_power_iterations: 6
+    spectral_radius_seed: 20260854
+    damping_relative_to_spectral_radius: 1.0e-4
+    cg_max_iterations: 8
+    cg_relative_residual_tolerance: 0.0
+    damping_recomputed_each_outer_iteration: false
+    reuse_armijo_settings: true
+    line_search_initial_scale: 1.0
+    operator_action_budget_contract:
+      unit: one_jacobian_and_adjoint_pair_or_one_loss_and_gradient_evaluation
+      baseline_nominal_units_if_first_trial_accepted: 61
+      control_nominal_units_if_first_trial_accepted: 61
+      shared_backtracking_safety_may_add_units: true
+    branch_selection_rule: single_preregistered_control_no_posthoc_selection
+    stopping_rule: fixed_outer_budget_or_existing_gradient_or_line_search_stop
+    truth_used_by_spectral_radius: false
+    truth_used_by_damping: false
+    truth_used_by_cg: false
+    truth_used_by_branch_selection: false
+    truth_used_by_stopping: false
+    scientific_thresholds_preregistered: false
 
 verification:
   random_seed: 20260842
@@ -140,7 +171,7 @@ verification:
   truth_initialized_diagnostic_only: true
   scientific_thresholds_preregistered: false
   detector_quadrature_ablation:
-    enabled: true
+    enabled: false
     role: truth_free_equal_budget_detector_data_model_pairing_control
     primary_data_model: q4_positive_staggered_midpoint_pixel_average
     control_data_model: bilinear_midpoint_point_from_q4_nodes
@@ -314,6 +345,31 @@ verification:
       truth_used_by_control: false
       scientific_thresholds_preregistered: false
 
+  exp053_feedback_simulation_evaluation_only:
+    enabled: true
+    enters_optimizer: false
+    enters_branch_selection: false
+    enters_stopping: false
+    source_run: runs/exp053_TGV_3d_multislice_reconstructed_probe_q8_cell_interval_20260831_143704
+    source_hdf5: outputs/exp053_reconstructed_probe_q8_cell_interval_fit.h5
+    source_hdf5_sha256: 7BCD5E1D817C497630474228D680B5058E5DD959FC8DB27E2DAA004438E83E8A
+    source_baseline_target_hdf5_path: /entry/reconstruction/waist_fit/reconstructed_target_q8_cell_interval/source/raw_P_B_rec_input
+    source_baseline_target_dataset_sha256: F6323C7A7676CEA2F8FD8D99EC2CEC0CA6C4C9234BD49F122F17BEDE4DDDC738
+    source_operator_reference_hdf5_path: /entry/truth/P_B_true_operator_reference
+    fixed_directions:
+      - name: minus_0p125um
+        candidate_cache_index: 162
+      - name: plus_0p125um
+        candidate_cache_index: 163
+      - name: best_candidate_manifold
+        candidate_cache_index: 161
+    prior_spectral_run: runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260822_151048
+    prior_spectral_hdf5: outputs/exp042_probe_reconstruction.h5
+    prior_spectral_hdf5_sha256: 30D75F03B84DA52E23E0BC0872516A60E190A3D5A9D9E66B0B533DC788825358
+    prior_pairwise_direction_hdf5_path: /entry/reconstruction/local_spectral_diagnostic/P_B_pairwise_direction_unit_l2
+    primary_postfreeze_directional_criterion: lower_absolute_best_candidate_real_projection_coefficient
+    no_numeric_scientific_pass_fail_threshold: true
+
 output:
   root: runs
   run_name: exp042_TGV_3d_multislice_probe_reconstruction_dev
@@ -328,3 +384,4 @@ output:
   spectral_figure_filename: exp042_local_spectral_diagnostic.png
   initialization_ablation_figure_filename: exp042_initialization_magnitude_ablation.png
   detector_quadrature_ablation_figure_filename: exp042_detector_quadrature_three_branch_control.png
+  exp053_feedback_figure_filename: exp042_exp053_feedback_damped_gn_control.png
