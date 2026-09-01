@@ -28,6 +28,12 @@ D_waist = min_z D(z)
    - 光场在层间传播，并逐层被薄层 transmission 调制。
    - 这个模型既可以作为 pipeline 1 中 A 生成 probe 的更真实 forward model，也为后续 3D reconstruction 打基础。
 
+## 当前项目状态
+
+截至 2026-09-01，Phase 0--3 已在各自理想或二维限定条件下完成；`exp040` scalar multislice working model 仍为 `Inconclusive / Frozen`，尚未通过高可信 reference validation。基于该 working model 的 `exp051` true-probe 与 `exp053` reconstructed-probe fixed-q8 单参数 `D_waist` interval baselines 已正式 `Passed`，但只表示单一无噪声、known-B、固定其他参数条件下的数值 self-consistency，不表示真实三维物理准确性、实际计量精度或不确定度。
+
+下一科学优先级是另行预注册 `exp055` nuisance / multi-parameter identifiability；真实 noise、stage、camera calibration 和 experimental data 仍未开始。最新状态与证据路径以 [路线图](docs/theory_notes/roadmap.md) 和各实验文档第 0 节为准。
+
 ## 环境创建
 
 当前仓库存有 `environment.yml`，创建 conda 环境，需要在终端中运行：
@@ -153,9 +159,10 @@ docs/theory_notes/data_format.md
 
 ## 当前 TODO
 
-- ePIE / rPIE reconstruction engine 仍处于早期验证阶段，unknown probe reconstruction 尚待完善。
-- Multi-slice propagation 已有初版函数，但仍需要和已知 reference 做物理验证。
-- TGV 2D model 只是 effective thin phase phantom，不代表真实 waist geometry。
+- exp020 强先验 blind baseline 与 exp042 known-B probe-reconstruction control 已建立；blind-B、含噪和 production reconstruction 仍待独立验证。
+- Multi-slice scalar working model 已完成多轮数值诊断，但仍需要高可信 reference / 物理验证。
+- exp051/exp053 已关闭 fixed-q8 单参数模型内闭环；`D_waist` 与 geometry/calibration nuisance 的耦合尚未验证。
+- TGV 2D model 只是 effective thin phase diagnostic，不代表真实 waist geometry。
 - 真实实验数据的 preprocessing / calibration 目前只预留接口。
 - Subpixel scan shift、detector calibration、stage error、CXI / NeXus export 仍待后续加入。
 
