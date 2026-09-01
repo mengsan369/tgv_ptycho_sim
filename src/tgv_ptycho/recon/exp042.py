@@ -598,6 +598,119 @@ def validate_exp042_config(config: Mapping[str, Any]) -> None:
     if reconstruction.get("initialization") != "homogeneous_reference_probe":
         raise ValueError("The primary initialization must remain homogeneous.")
     execution_mode = str(execution.get("mode"))
+    if execution_mode == "exp053_feedback_damped_gauss_newton_control":
+        control = _section(reconstruction, "exp053_feedback_control")
+        if control.get("enabled") is not True:
+            raise ValueError("The exp053 feedback control must be enabled.")
+        if control.get("role") != (
+            "truth_free_matrix_free_spectrally_damped_gauss_newton_cg_control"
+        ):
+            raise ValueError("The exp053 feedback control role is invalid.")
+        if control.get("changed_factor") != (
+            "reconstruction_search_direction_only"
+        ):
+            raise ValueError("Only the reconstruction search direction may change.")
+        shared_inputs = control.get(
+            "same_exp040_source_b_scan_q4_data_operator_initialization_seed"
+        )
+        if shared_inputs is not True:
+            raise ValueError("The exp053 feedback branches must share all inputs.")
+        if control.get("baseline_algorithm") != reconstruction.get("algorithm"):
+            raise ValueError("The registered baseline algorithm changed.")
+        if control.get("control_algorithm") != (
+            "batch_spectrally_damped_gauss_newton_cg_armijo"
+        ):
+            raise ValueError("The registered control algorithm is invalid.")
+        baseline_iterations = int(control["baseline_iterations"])
+        outer_iterations = int(control["control_outer_iterations"])
+        power_iterations = int(control["spectral_radius_power_iterations"])
+        cg_iterations = int(control["cg_max_iterations"])
+        if baseline_iterations != int(reconstruction["iterations"]):
+            raise ValueError("The feedback baseline budget changed.")
+        if (outer_iterations, power_iterations, cg_iterations) != (6, 6, 8):
+            raise ValueError("The preregistered GN-CG action budget changed.")
+        damping = float(control["damping_relative_to_spectral_radius"])
+        tolerance = float(control["cg_relative_residual_tolerance"])
+        if not np.isfinite(damping) or damping != 1.0e-4:
+            raise ValueError("The preregistered spectral damping changed.")
+        if not np.isfinite(tolerance) or tolerance != 0.0:
+            raise ValueError("The preregistered fixed CG stopping rule changed.")
+        if float(control.get("line_search_initial_scale", 0.0)) != 1.0:
+            raise ValueError("The GN-CG line-search initial scale must be one.")
+        seed = int(control["spectral_radius_seed"])
+        if seed < 0 or seed != float(control["spectral_radius_seed"]):
+            raise ValueError("The spectral-radius seed must be nonnegative.")
+        for key in (
+            "truth_used_by_spectral_radius",
+            "truth_used_by_damping",
+            "truth_used_by_cg",
+            "truth_used_by_branch_selection",
+            "truth_used_by_stopping",
+            "scientific_thresholds_preregistered",
+        ):
+            if control.get(key) is not False:
+                raise ValueError(f"exp053_feedback_control.{key} must be false.")
+        if control.get("damping_recomputed_each_outer_iteration") is not False:
+            raise ValueError("The preregistered damping must remain fixed.")
+        if control.get("reuse_armijo_settings") is not True:
+            raise ValueError("The feedback control must reuse Armijo settings.")
+        budget = _section(control, "operator_action_budget_contract")
+        baseline_units = 1 + baseline_iterations
+        control_units = 1 + power_iterations + outer_iterations * (
+            cg_iterations + 1
+        )
+        if baseline_units != control_units or baseline_units != 61:
+            raise ValueError("The nominal operator-action budgets are not equal.")
+        if int(budget["baseline_nominal_units_if_first_trial_accepted"]) != 61:
+            raise ValueError("The baseline action budget declaration changed.")
+        if int(budget["control_nominal_units_if_first_trial_accepted"]) != 61:
+            raise ValueError("The control action budget declaration changed.")
+        if budget.get("shared_backtracking_safety_may_add_units") is not True:
+            raise ValueError("The shared backtracking safety must be declared.")
+        posthoc = _section(
+            verification, "exp053_feedback_simulation_evaluation_only"
+        )
+        if posthoc.get("enabled") is not True:
+            raise ValueError(
+                "The registered exp053 post-freeze evaluation is required."
+            )
+        for key in (
+            "enters_optimizer",
+            "enters_branch_selection",
+            "enters_stopping",
+        ):
+            if posthoc.get(key) is not False:
+                raise ValueError(f"The post-freeze control {key} must be false.")
+        for key in (
+            "source_hdf5_sha256",
+            "source_baseline_target_dataset_sha256",
+            "prior_spectral_hdf5_sha256",
+        ):
+            digest = str(posthoc.get(key, ""))
+            if len(digest) != 64 or any(
+                character not in "0123456789ABCDEF" for character in digest
+            ):
+                raise ValueError(f"Invalid post-freeze digest: {key}.")
+        directions = list(posthoc.get("fixed_directions", []))
+        if [str(item.get("name")) for item in directions] != [
+            "minus_0p125um",
+            "plus_0p125um",
+            "best_candidate_manifold",
+        ]:
+            raise ValueError("The three exp053 fixed directions changed.")
+        if [int(item.get("candidate_cache_index")) for item in directions] != [
+            162,
+            163,
+            161,
+        ]:
+            raise ValueError("The fixed exp053 candidate indexes changed.")
+        if posthoc.get("no_numeric_scientific_pass_fail_threshold") is not True:
+            raise ValueError("No scientific threshold may be introduced here.")
+        if _section(verification, "detector_quadrature_ablation").get(
+            "enabled"
+        ) is not False:
+            raise ValueError("The old detector ablation must remain disabled.")
+        return
     if execution_mode in {
         "initialization_ablation_matched",
         "initialization_magnitude_ablation_matched",
@@ -1514,6 +1627,184 @@ def gauss_newton_step_diagnostic(
     }
 
 
+def gauss_newton_normal_action(
+    operator: MatchedKnownBProbeOperator,
+    probe: ComplexArray,
+    direction: ComplexArray,
+) -> NDArray[np.complex128]:
+    """Apply the mean-normalized real Gauss--Newton operator ``J^T J``."""
+
+    probe_values = np.asarray(probe, dtype=np.complex128)
+    direction_values = np.asarray(direction, dtype=np.complex128)
+    if (
+        probe_values.shape != operator.native_shape
+        or direction_values.shape != operator.native_shape
+        or not np.all(np.isfinite(probe_values))
+        or not np.all(np.isfinite(direction_values))
+    ):
+        raise ValueError("probe and direction must be finite native fields.")
+    detector_count = float(
+        len(operator.positions_m) * np.prod(operator.detector_roi_shape)
+    )
+    jacobian_direction = operator.intensity_jacobian_direction(
+        probe_values, direction_values
+    )
+    return np.asarray(
+        operator.intensity_jacobian_adjoint(
+            probe_values, jacobian_direction
+        )
+        / detector_count,
+        dtype=np.complex128,
+    )
+
+
+def estimate_gauss_newton_spectral_radius(
+    operator: MatchedKnownBProbeOperator,
+    probe: ComplexArray,
+    *,
+    iterations: int,
+    seed: int,
+) -> dict[str, Any]:
+    """Estimate the local ``J^T J`` spectral radius without simulation truth."""
+
+    requested = int(iterations)
+    seed_value = int(seed)
+    if requested < 1 or seed_value < 0 or seed_value != float(seed):
+        raise ValueError("Power iterations and seed must be positive/nonnegative.")
+    probe_values = np.asarray(probe, dtype=np.complex128)
+    if (
+        probe_values.shape != operator.native_shape
+        or not np.all(np.isfinite(probe_values))
+    ):
+        raise ValueError("probe must be a finite native field.")
+    rng = np.random.default_rng(seed_value)
+    vector = rng.normal(size=operator.native_shape) + 1j * rng.normal(
+        size=operator.native_shape
+    )
+    vector -= np.mean(vector, dtype=np.complex128)
+    vector = np.asarray(vector / _l2_norm(vector), dtype=np.complex128)
+    rayleigh_curve: list[float] = []
+    for _ in range(requested):
+        action = gauss_newton_normal_action(operator, probe_values, vector)
+        rayleigh = _real_inner_product(vector, action)
+        action_norm = _l2_norm(action)
+        if not np.isfinite(action_norm) or action_norm <= np.finfo(float).eps:
+            raise RuntimeError("The GN power iteration encountered zero action.")
+        vector = np.asarray(action / action_norm, dtype=np.complex128)
+        if not np.isfinite(rayleigh) or rayleigh <= 0.0:
+            raise RuntimeError("The GN spectral-radius estimate is not positive.")
+        rayleigh_curve.append(float(rayleigh))
+    return {
+        "spectral_radius_estimate": float(rayleigh_curve[-1]),
+        "rayleigh_curve": np.asarray(rayleigh_curve, dtype=np.float64),
+        "power_iterations_completed": requested,
+        "normal_operator_action_count": requested,
+        "seed": seed_value,
+        "truth_used_by_spectral_radius": False,
+    }
+
+
+def damped_gauss_newton_cg_direction(
+    operator: MatchedKnownBProbeOperator,
+    probe: ComplexArray,
+    gradient: ComplexArray,
+    *,
+    damping: float,
+    max_iterations: int,
+    relative_residual_tolerance: float,
+) -> dict[str, Any]:
+    """Solve ``(J^T J + damping I) d = gradient`` by real-inner-product CG."""
+
+    probe_values = np.asarray(probe, dtype=np.complex128)
+    right_hand_side = np.asarray(gradient, dtype=np.complex128)
+    damping_value = float(damping)
+    requested = int(max_iterations)
+    tolerance = float(relative_residual_tolerance)
+    if (
+        probe_values.shape != operator.native_shape
+        or right_hand_side.shape != operator.native_shape
+        or not np.all(np.isfinite(probe_values))
+        or not np.all(np.isfinite(right_hand_side))
+    ):
+        raise ValueError("probe and gradient must be finite native fields.")
+    if not np.isfinite(damping_value) or damping_value <= 0.0:
+        raise ValueError("damping must be finite and positive.")
+    if requested < 1 or not np.isfinite(tolerance) or not 0.0 <= tolerance < 1.0:
+        raise ValueError("Invalid CG iteration or residual tolerance.")
+
+    direction = np.zeros(operator.native_shape, dtype=np.complex128)
+    residual = right_hand_side.copy()
+    search = residual.copy()
+    residual_squared = _real_inner_product(residual, residual)
+    initial_residual = float(np.sqrt(max(residual_squared, 0.0)))
+    residual_curve = [initial_residual]
+    quadratic_curve = [0.0]
+    completed = 0
+    stopping_reason = "iteration_budget"
+    epsilon = np.finfo(np.float64).eps
+    for _ in range(requested):
+        normal_search = gauss_newton_normal_action(
+            operator, probe_values, search
+        )
+        system_search = normal_search + damping_value * search
+        denominator = _real_inner_product(search, system_search)
+        if not np.isfinite(denominator) or denominator <= epsilon:
+            stopping_reason = "nonpositive_curvature"
+            break
+        alpha = residual_squared / denominator
+        direction = np.asarray(direction + alpha * search, dtype=np.complex128)
+        residual = np.asarray(
+            residual - alpha * system_search, dtype=np.complex128
+        )
+        next_residual_squared = _real_inner_product(residual, residual)
+        completed += 1
+        residual_curve.append(
+            float(np.sqrt(max(next_residual_squared, 0.0)))
+        )
+        quadratic_curve.append(
+            float(
+                0.5
+                * _real_inner_product(
+                    direction, right_hand_side - residual
+                )
+                - _real_inner_product(right_hand_side, direction)
+            )
+        )
+        if residual_curve[-1] <= tolerance * max(initial_residual, epsilon):
+            stopping_reason = "relative_residual"
+            residual_squared = next_residual_squared
+            break
+        beta = next_residual_squared / max(residual_squared, epsilon)
+        search = np.asarray(residual + beta * search, dtype=np.complex128)
+        residual_squared = next_residual_squared
+    descent_inner_product = _real_inner_product(
+        right_hand_side, direction
+    )
+    if completed < 1 or not np.isfinite(descent_inner_product):
+        raise RuntimeError("The damped GN-CG solve produced no finite direction.")
+    if descent_inner_product <= 0.0:
+        raise RuntimeError("The damped GN-CG direction is not a descent direction.")
+    return {
+        "direction": direction,
+        "iterations_completed": completed,
+        "stopping_reason": stopping_reason,
+        "residual_l2_curve": np.asarray(residual_curve, dtype=np.float64),
+        "quadratic_model_curve": np.asarray(
+            quadratic_curve, dtype=np.float64
+        ),
+        "initial_residual_l2": initial_residual,
+        "final_residual_l2": float(residual_curve[-1]),
+        "relative_residual": float(
+            residual_curve[-1] / max(initial_residual, epsilon)
+        ),
+        "gradient_direction_real_inner_product": float(
+            descent_inner_product
+        ),
+        "normal_operator_action_count": completed,
+        "truth_used_by_cg": False,
+    }
+
+
 def operator_consistency_metrics(
     case: Mapping[str, Any], config: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -2000,6 +2291,245 @@ def reconstruct_known_b_probe(
         "iterations_completed": len(losses) - 1,
         "stopping_reason": stopping_reason,
         "algorithm": algorithm,
+        "truth_used_by_optimizer": False,
+        "sample_b_updated": False,
+    }
+
+
+def reconstruct_known_b_probe_damped_gn_cg(
+    operator: MatchedKnownBProbeOperator,
+    measured: FloatArray,
+    init_probe: ComplexArray,
+    reconstruction_settings: Mapping[str, Any],
+    control_settings: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Recover ``P_B`` with a truth-free spectrally damped GN-CG direction."""
+
+    if reconstruction_settings.get("known_sample_b") is not True:
+        raise ValueError("known_sample_b must remain true.")
+    if reconstruction_settings.get("update_sample_b") is not False:
+        raise ValueError("The GN-CG control cannot update sample B.")
+    if reconstruction_settings.get("truth_used_by_optimizer") is not False:
+        raise ValueError("Truth is forbidden from the GN-CG control.")
+    if control_settings.get("control_algorithm") != (
+        "batch_spectrally_damped_gauss_newton_cg_armijo"
+    ):
+        raise ValueError("Unsupported exp042 GN-CG control algorithm.")
+    for key in (
+        "truth_used_by_spectral_radius",
+        "truth_used_by_damping",
+        "truth_used_by_cg",
+        "truth_used_by_branch_selection",
+        "truth_used_by_stopping",
+    ):
+        if control_settings.get(key) is not False:
+            raise ValueError(f"GN-CG truth boundary violated at {key}.")
+
+    outer_iterations = int(control_settings["control_outer_iterations"])
+    power_iterations = int(control_settings["spectral_radius_power_iterations"])
+    power_seed = int(control_settings["spectral_radius_seed"])
+    damping_relative = float(
+        control_settings["damping_relative_to_spectral_radius"]
+    )
+    cg_max_iterations = int(control_settings["cg_max_iterations"])
+    cg_tolerance = float(
+        control_settings["cg_relative_residual_tolerance"]
+    )
+    initial_scale = float(control_settings["line_search_initial_scale"])
+    backtracking_factor = float(reconstruction_settings["backtracking_factor"])
+    armijo_c = float(reconstruction_settings["armijo_c"])
+    max_backtracking = int(reconstruction_settings["max_backtracking_steps"])
+    minimum_step = float(reconstruction_settings["minimum_step"])
+    gradient_stop = float(reconstruction_settings["gradient_norm_stop"])
+    if outer_iterations < 1 or power_iterations < 1 or cg_max_iterations < 1:
+        raise ValueError("The GN-CG iteration budgets must be positive.")
+    if not np.isfinite(damping_relative) or damping_relative <= 0.0:
+        raise ValueError("The relative damping must be finite and positive.")
+    if not np.isfinite(initial_scale) or initial_scale <= 0.0:
+        raise ValueError("The GN-CG line-search scale must be positive.")
+
+    data = np.asarray(measured, dtype=np.float64)
+    probe = np.asarray(init_probe, dtype=np.complex128).copy()
+    expected_data_shape = (
+        len(operator.positions_m),
+        *operator.detector_roi_shape,
+    )
+    if (
+        probe.shape != operator.native_shape
+        or data.shape != expected_data_shape
+        or not np.all(np.isfinite(probe))
+        or not np.all(np.isfinite(data))
+    ):
+        raise ValueError("GN-CG inputs must be finite and match the operator.")
+
+    loss, gradient, prediction = operator.loss_and_gradient(probe, data)
+    loss_gradient_evaluations = 1
+    spectral = estimate_gauss_newton_spectral_radius(
+        operator,
+        probe,
+        iterations=power_iterations,
+        seed=power_seed,
+    )
+    spectral_radius = float(spectral["spectral_radius_estimate"])
+    damping = damping_relative * spectral_radius
+    if not np.isfinite(damping) or damping <= 0.0:
+        raise RuntimeError("The GN-CG damping is not finite and positive.")
+
+    losses = [float(loss)]
+    residuals = [detector_relative_residual(prediction, data)]
+    gradient_norms = [_l2_norm(gradient)]
+    accepted_steps = [0.0]
+    backtracking_counts = [0]
+    cg_iterations_curve: list[int] = []
+    cg_relative_residual_curve: list[float] = []
+    cg_gradient_direction_inner_curve: list[float] = []
+    cg_residual_histories: list[NDArray[np.float64]] = []
+    cg_quadratic_histories: list[NDArray[np.float64]] = []
+    cg_stopping_reasons: list[str] = []
+    probe_history = [probe.copy()]
+    normal_action_count = int(spectral["normal_operator_action_count"])
+    stopping_reason = "iteration_budget"
+
+    for _ in range(outer_iterations):
+        gradient_norm = _l2_norm(gradient)
+        if gradient_norm <= max(gradient_stop, np.finfo(np.float64).eps):
+            stopping_reason = "gradient_norm"
+            break
+        solve = damped_gauss_newton_cg_direction(
+            operator,
+            probe,
+            gradient,
+            damping=damping,
+            max_iterations=cg_max_iterations,
+            relative_residual_tolerance=cg_tolerance,
+        )
+        direction = np.asarray(solve["direction"], dtype=np.complex128)
+        descent_inner = float(
+            solve["gradient_direction_real_inner_product"]
+        )
+        slope = -descent_inner
+        step = initial_scale
+        accepted = False
+        candidate_loss = float("nan")
+        candidate_gradient = gradient
+        candidate_prediction = prediction
+        candidate = probe
+        backtracking_count = 0
+        for attempt in range(max_backtracking):
+            backtracking_count = attempt
+            candidate = probe - step * direction
+            (
+                candidate_loss,
+                candidate_gradient,
+                candidate_prediction,
+            ) = operator.loss_and_gradient(candidate, data)
+            loss_gradient_evaluations += 1
+            if candidate_loss <= loss + armijo_c * step * slope:
+                accepted = True
+                break
+            step *= backtracking_factor
+            if step < minimum_step:
+                break
+        if not accepted:
+            stopping_reason = "line_search_failed"
+            break
+        probe = np.asarray(candidate, dtype=np.complex128)
+        loss = float(candidate_loss)
+        gradient = np.asarray(candidate_gradient, dtype=np.complex128)
+        prediction = np.asarray(candidate_prediction, dtype=np.float64)
+        losses.append(loss)
+        residuals.append(detector_relative_residual(prediction, data))
+        gradient_norms.append(_l2_norm(gradient))
+        accepted_steps.append(step)
+        backtracking_counts.append(backtracking_count)
+        cg_iterations_curve.append(int(solve["iterations_completed"]))
+        cg_relative_residual_curve.append(float(solve["relative_residual"]))
+        cg_gradient_direction_inner_curve.append(descent_inner)
+        residual_history = np.asarray(
+            solve["residual_l2_curve"], dtype=np.float64
+        )
+        quadratic_history = np.asarray(
+            solve["quadratic_model_curve"], dtype=np.float64
+        )
+        residual_padded = np.full(
+            cg_max_iterations + 1,
+            residual_history[-1],
+            dtype=np.float64,
+        )
+        quadratic_padded = np.full(
+            cg_max_iterations + 1,
+            quadratic_history[-1],
+            dtype=np.float64,
+        )
+        residual_padded[: residual_history.size] = residual_history
+        quadratic_padded[: quadratic_history.size] = quadratic_history
+        cg_residual_histories.append(residual_padded)
+        cg_quadratic_histories.append(quadratic_padded)
+        cg_stopping_reasons.append(str(solve["stopping_reason"]))
+        normal_action_count += int(solve["normal_operator_action_count"])
+        probe_history.append(probe.copy())
+
+    completed = len(losses) - 1
+    empty_history = np.empty((0, cg_max_iterations + 1), dtype=np.float64)
+    return {
+        "P_B_rec": probe,
+        "P_B_init": np.asarray(init_probe, dtype=np.complex128).copy(),
+        "prediction_final": prediction,
+        "loss_curve": np.asarray(losses, dtype=np.float64),
+        "detector_relative_residual_curve": np.asarray(
+            residuals, dtype=np.float64
+        ),
+        "gradient_l2_norm_curve": np.asarray(
+            gradient_norms, dtype=np.float64
+        ),
+        "accepted_step_curve": np.asarray(accepted_steps, dtype=np.float64),
+        "backtracking_count_curve": np.asarray(
+            backtracking_counts, dtype=np.int64
+        ),
+        "total_backtracking_steps": int(np.sum(backtracking_counts)),
+        "spectral_radius_estimate": spectral_radius,
+        "spectral_radius_rayleigh_curve": spectral["rayleigh_curve"],
+        "spectral_radius_power_iterations_completed": int(
+            spectral["power_iterations_completed"]
+        ),
+        "spectral_radius_seed": int(spectral["seed"]),
+        "damping": damping,
+        "damping_relative_to_spectral_radius": damping_relative,
+        "estimated_damped_condition_upper_bound": float(
+            (spectral_radius + damping) / damping
+        ),
+        "cg_iterations_curve": np.asarray(
+            cg_iterations_curve, dtype=np.int64
+        ),
+        "cg_relative_residual_curve": np.asarray(
+            cg_relative_residual_curve, dtype=np.float64
+        ),
+        "cg_gradient_direction_real_inner_product_curve": np.asarray(
+            cg_gradient_direction_inner_curve, dtype=np.float64
+        ),
+        "cg_residual_l2_history": (
+            np.stack(cg_residual_histories)
+            if cg_residual_histories
+            else empty_history
+        ),
+        "cg_quadratic_model_history": (
+            np.stack(cg_quadratic_histories)
+            if cg_quadratic_histories
+            else empty_history.copy()
+        ),
+        "cg_stopping_reason": cg_stopping_reasons,
+        "normal_operator_action_count": normal_action_count,
+        "loss_gradient_evaluation_count": loss_gradient_evaluations,
+        "operator_action_budget_units": (
+            normal_action_count + loss_gradient_evaluations
+        ),
+        "probe_history": np.stack(probe_history),
+        "iterations_completed": completed,
+        "stopping_reason": stopping_reason,
+        "algorithm": str(control_settings["control_algorithm"]),
+        "truth_used_by_spectral_radius": False,
+        "truth_used_by_damping": False,
+        "truth_used_by_cg": False,
         "truth_used_by_optimizer": False,
         "sample_b_updated": False,
     }
@@ -3512,4 +4042,136 @@ def simulation_evaluation_only(
         ),
         "truth_used_by_optimizer": False,
         "evaluation_role": "simulation_evaluation_only",
+    }
+
+
+def probe_error_metrics_simulation_only(
+    reconstruction: ComplexArray, truth: ComplexArray
+) -> dict[str, float | bool | str]:
+    """Return raw, amplitude, and phase-sensitive truth-aided field errors."""
+
+    estimate = np.asarray(reconstruction, dtype=np.complex128)
+    reference = np.asarray(truth, dtype=np.complex128)
+    if (
+        estimate.shape != reference.shape
+        or estimate.ndim != 2
+        or not np.all(np.isfinite(estimate))
+        or not np.all(np.isfinite(reference))
+    ):
+        raise ValueError("reconstruction and truth must be finite 2D fields.")
+    reference_norm = _l2_norm(reference)
+    if reference_norm <= np.finfo(np.float64).eps:
+        raise ValueError("truth must have nonzero norm.")
+    amplitude_error = _l2_norm(np.abs(estimate) - np.abs(reference))
+    phase_residual = np.abs(reference) * (
+        np.exp(1j * np.angle(estimate))
+        - np.exp(1j * np.angle(reference))
+    )
+    return {
+        "raw_complex_relative_l2": relative_l2(estimate, reference),
+        "amplitude_relative_l2": float(amplitude_error / reference_norm),
+        "amplitude_weighted_phase_sensitive_relative_l2": float(
+            _l2_norm(phase_residual) / reference_norm
+        ),
+        "simulation_evaluation_only": True,
+        "enters_optimizer": False,
+        "evaluation_role": "postfreeze_probe_error_metrics",
+    }
+
+
+def direction_metrics_simulation_only(
+    error: ComplexArray, direction: ComplexArray
+) -> dict[str, float | bool]:
+    """Return the exp053 real-projection metrics for one fixed direction."""
+
+    error_values = np.asarray(error, dtype=np.complex128)
+    direction_values = np.asarray(direction, dtype=np.complex128)
+    if (
+        error_values.shape != direction_values.shape
+        or error_values.ndim != 2
+        or not np.all(np.isfinite(error_values))
+        or not np.all(np.isfinite(direction_values))
+    ):
+        raise ValueError("error and direction must be finite same-shape fields.")
+    error_norm = _l2_norm(error_values)
+    direction_norm = _l2_norm(direction_values)
+    denominator = error_norm * direction_norm
+    if denominator <= np.finfo(np.float64).eps:
+        return {
+            "valid": False,
+            "direction_norm": direction_norm,
+            "real_cosine": 0.0,
+            "complex_coherence": 0.0,
+            "real_projection_coefficient": 0.0,
+        }
+    inner = _complex_inner_product(direction_values, error_values)
+    return {
+        "valid": True,
+        "direction_norm": direction_norm,
+        "real_cosine": float(np.real(inner) / denominator),
+        "complex_coherence": float(np.abs(inner) / denominator),
+        "real_projection_coefficient": float(
+            np.real(inner) / (direction_norm**2)
+        ),
+    }
+
+
+def exp053_directional_evaluation_simulation_only(
+    operator: MatchedKnownBProbeOperator,
+    reconstruction: ComplexArray,
+    truth: ComplexArray,
+    fixed_directions: Mapping[str, ComplexArray],
+    prior_weak_direction: ComplexArray,
+) -> dict[str, Any]:
+    """Evaluate frozen exp053 directions after reconstruction has completed."""
+
+    estimate = np.asarray(reconstruction, dtype=np.complex128)
+    reference = np.asarray(truth, dtype=np.complex128)
+    weak = np.asarray(prior_weak_direction, dtype=np.complex128)
+    if estimate.shape != reference.shape or weak.shape != reference.shape:
+        raise ValueError("The directional evaluation fields disagree in shape.")
+    error = np.asarray(estimate - reference, dtype=np.complex128)
+    weak_norm = _l2_norm(weak)
+    if weak_norm <= np.finfo(np.float64).eps:
+        raise ValueError("The prior weak direction must be nonzero.")
+    weak_unit = np.asarray(weak / weak_norm, dtype=np.complex128)
+    directions: dict[str, Any] = {}
+    for name, direction in fixed_directions.items():
+        values = np.asarray(direction, dtype=np.complex128)
+        metrics = direction_metrics_simulation_only(error, values)
+        direction_norm = _l2_norm(values)
+        if direction_norm <= np.finfo(np.float64).eps:
+            raise ValueError(f"The fixed direction is zero: {name}.")
+        direction_unit = np.asarray(
+            values / direction_norm, dtype=np.complex128
+        )
+        weak_inner = _complex_inner_product(weak_unit, direction_unit)
+        sensitivity = normalized_intensity_jacobian_sensitivity(
+            operator, estimate, direction_unit
+        )
+        directions[str(name)] = {
+            **metrics,
+            "direct_jacobian_rms_gain_at_reconstruction": sensitivity[
+                "jacobian_rms_gain"
+            ],
+            "real_overlap_with_prior_pairwise_weak_direction": float(
+                np.real(weak_inner)
+            ),
+            "complex_coherence_with_prior_pairwise_weak_direction": float(
+                np.abs(weak_inner)
+            ),
+            "squared_projection_weight_on_prior_pairwise_weak_direction": (
+                float(np.abs(weak_inner) ** 2)
+            ),
+        }
+    return {
+        "probe_error": probe_error_metrics_simulation_only(
+            estimate, reference
+        ),
+        "directions": directions,
+        "simulation_evaluation_only": True,
+        "enters_optimizer": False,
+        "enters_branch_selection": False,
+        "enters_stopping": False,
+        "evaluation_role": "postfreeze_exp053_fixed_direction_feedback",
     }

@@ -13,6 +13,7 @@ from typing import Any
 import h5py
 import matplotlib
 import numpy as np
+from PIL import Image, ImageDraw
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -36,11 +37,13 @@ from tgv_ptycho.recon.exp042 import (  # noqa: E402
     MatchedKnownBProbeOperator,
     build_matched_development_case,
     detector_quadrature_ablation_consistency_metrics,
+    exp053_directional_evaluation_simulation_only,
     lanczos_dimension_convergence_diagnostic,
     make_detector_readout_operator,
     make_deterministic_complex_probe_initialization,
     operator_consistency_metrics,
     reconstruct_known_b_probe,
+    reconstruct_known_b_probe_damped_gn_cg,
     simulation_evaluation_only,
     truth_free_detector_quadrature_ablation_diagnostic,
     truth_free_initialization_ablation_diagnostic,
@@ -66,6 +69,11 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest().upper()
+
+
+def _sha256_array_bytes(values: np.ndarray) -> str:
+    array = np.ascontiguousarray(values)
+    return hashlib.sha256(array.view(np.uint8)).hexdigest().upper()
 
 
 def _save_figures(
@@ -3314,6 +3322,948 @@ def _run_local_spectral_diagnostic(config_path: Path) -> Path:
     return run_dir
 
 
+def _feedback_branch_hdf5_payload(
+    reconstruction: dict[str, Any],
+    evaluation: dict[str, Any],
+    directional_evaluation: dict[str, Any],
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "P_B_init": reconstruction["P_B_init"],
+        "P_B_rec": reconstruction["P_B_rec"],
+        "loss_curve": reconstruction["loss_curve"],
+        "detector_relative_residual_curve": reconstruction[
+            "detector_relative_residual_curve"
+        ],
+        "gradient_l2_norm_curve": reconstruction["gradient_l2_norm_curve"],
+        "accepted_step_curve": reconstruction["accepted_step_curve"],
+        "backtracking_count_curve": reconstruction[
+            "backtracking_count_curve"
+        ],
+        "total_backtracking_steps": reconstruction[
+            "total_backtracking_steps"
+        ],
+        "iterations_completed": reconstruction["iterations_completed"],
+        "stopping_reason": reconstruction["stopping_reason"],
+        "algorithm": reconstruction["algorithm"],
+        "truth_used_by_optimizer": False,
+        "sample_b_updated": False,
+        "simulation_evaluation_only": {
+            "P_B_rec_global_phase_aligned": evaluation[
+                "P_B_rec_global_phase_aligned"
+            ],
+            "global_phase_alignment_factor": evaluation[
+                "global_phase_alignment_factor"
+            ],
+            "probe_raw_relative_l2_curve": evaluation[
+                "probe_raw_relative_l2_curve"
+            ],
+            "probe_global_phase_aligned_relative_l2_curve": evaluation[
+                "probe_global_phase_aligned_relative_l2_curve"
+            ],
+            "exp053_fixed_direction_evaluation": directional_evaluation,
+        },
+    }
+    optional_names = (
+        "proposed_step_curve",
+        "gauss_newton_directional_curvature_curve",
+        "step_scale_fallback_curve",
+        "step_scale_fallback_count",
+        "spectral_radius_estimate",
+        "spectral_radius_rayleigh_curve",
+        "spectral_radius_power_iterations_completed",
+        "spectral_radius_seed",
+        "damping",
+        "damping_relative_to_spectral_radius",
+        "estimated_damped_condition_upper_bound",
+        "cg_iterations_curve",
+        "cg_relative_residual_curve",
+        "cg_gradient_direction_real_inner_product_curve",
+        "cg_residual_l2_history",
+        "cg_quadratic_model_history",
+        "cg_stopping_reason",
+        "normal_operator_action_count",
+        "loss_gradient_evaluation_count",
+        "operator_action_budget_units",
+        "truth_used_by_spectral_radius",
+        "truth_used_by_damping",
+        "truth_used_by_cg",
+    )
+    for name in optional_names:
+        if name in reconstruction:
+            payload[name] = reconstruction[name]
+    return payload
+
+
+def _load_feedback_evaluation_sources(
+    config: dict[str, Any],
+    case: dict[str, Any],
+    baseline_reconstruction: dict[str, Any],
+) -> dict[str, Any]:
+    """Load hash-locked exp053/spectral fields after both optimizers finish."""
+
+    settings = config["verification"][
+        "exp053_feedback_simulation_evaluation_only"
+    ]
+    exp053_run = PROJECT_ROOT / str(settings["source_run"])
+    exp053_hdf5 = exp053_run / str(settings["source_hdf5"])
+    if _sha256(exp053_hdf5) != str(settings["source_hdf5_sha256"]):
+        raise RuntimeError("The locked exp053 feedback HDF5 hash changed.")
+    baseline_path = str(settings["source_baseline_target_hdf5_path"])
+    truth_path = str(settings["source_operator_reference_hdf5_path"])
+    cache_path = (
+        "/entry/reconstruction/waist_fit/"
+        "reconstructed_target_q8_cell_interval/cache/P_B_candidate"
+    )
+    with h5py.File(exp053_hdf5, "r") as h5:
+        baseline_source = np.asarray(h5[baseline_path][...], dtype=np.complex128)
+        truth_source = np.asarray(h5[truth_path][...], dtype=np.complex128)
+        candidate_cache = h5[cache_path]
+        fixed_directions = {
+            str(item["name"]): np.asarray(
+                candidate_cache[int(item["candidate_cache_index"])][...]
+                - truth_source,
+                dtype=np.complex128,
+            )
+            for item in settings["fixed_directions"]
+        }
+    if _sha256_array_bytes(baseline_source) != str(
+        settings["source_baseline_target_dataset_sha256"]
+    ):
+        raise RuntimeError("The locked exp053 baseline dataset hash changed.")
+    if not np.array_equal(
+        baseline_source, baseline_reconstruction["P_B_rec"]
+    ):
+        raise RuntimeError("The regenerated baseline no longer replays exp053.")
+    if not np.array_equal(truth_source, case["P_B_true"]):
+        raise RuntimeError("The exp053 operator-reference truth changed.")
+
+    spectral_run = PROJECT_ROOT / str(settings["prior_spectral_run"])
+    spectral_hdf5 = spectral_run / str(settings["prior_spectral_hdf5"])
+    if _sha256(spectral_hdf5) != str(
+        settings["prior_spectral_hdf5_sha256"]
+    ):
+        raise RuntimeError("The locked exp042 spectral HDF5 hash changed.")
+    weak_path = str(settings["prior_pairwise_direction_hdf5_path"])
+    primary_path = (
+        "/entry/reconstruction/local_spectral_diagnostic/"
+        "P_B_primary_probe_raw"
+    )
+    with h5py.File(spectral_hdf5, "r") as h5:
+        weak_direction = np.asarray(h5[weak_path][...], dtype=np.complex128)
+        spectral_primary = np.asarray(
+            h5[primary_path][...], dtype=np.complex128
+        )
+    spectral_primary_difference = float(
+        np.sqrt(
+            np.sum(
+                np.abs(spectral_primary - baseline_source) ** 2,
+                dtype=np.float64,
+            )
+        )
+        / max(
+            np.sqrt(
+                np.sum(np.abs(baseline_source) ** 2, dtype=np.float64)
+            ),
+            np.finfo(np.float64).eps,
+        )
+    )
+    return {
+        "exp053_run": str(exp053_run),
+        "exp053_hdf5": str(exp053_hdf5),
+        "exp053_hdf5_sha256": str(settings["source_hdf5_sha256"]),
+        "exp053_baseline_hdf5_path": baseline_path,
+        "exp053_baseline_dataset_sha256": _sha256_array_bytes(
+            baseline_source
+        ),
+        "exp053_truth_hdf5_path": truth_path,
+        "fixed_direction_cache_indexes": {
+            str(item["name"]): int(item["candidate_cache_index"])
+            for item in settings["fixed_directions"]
+        },
+        "fixed_directions": fixed_directions,
+        "prior_spectral_run": str(spectral_run),
+        "prior_spectral_hdf5": str(spectral_hdf5),
+        "prior_spectral_hdf5_sha256": str(
+            settings["prior_spectral_hdf5_sha256"]
+        ),
+        "prior_weak_direction_hdf5_path": weak_path,
+        "prior_weak_direction": weak_direction,
+        "baseline_source": baseline_source,
+        "prior_spectral_primary_dataset_sha256": _sha256_array_bytes(
+            spectral_primary
+        ),
+        "prior_spectral_primary_exact_equal_to_exp053_baseline": bool(
+            np.array_equal(spectral_primary, baseline_source)
+        ),
+        "prior_spectral_primary_relative_l2_to_exp053_baseline": (
+            spectral_primary_difference
+        ),
+        "prior_weak_direction_transfer_is_cross_endpoint": bool(
+            spectral_primary_difference > 0.0
+        ),
+        "prior_weak_direction_interpretation_boundary": (
+            "field-space overlap only; weak-mode status was measured at the "
+            "locked prior spectral endpoint, while current-endpoint direct "
+            "Jacobian gains are recomputed separately"
+        ),
+        "baseline_source_replay_exact": True,
+        "operator_reference_truth_replay_exact": True,
+        "loaded_after_reconstruction": True,
+        "enters_optimizer": False,
+        "enters_branch_selection": False,
+        "enters_stopping": False,
+    }
+
+
+def _feedback_direction_comparison(
+    baseline: dict[str, Any], control: dict[str, Any]
+) -> dict[str, Any]:
+    comparisons: dict[str, Any] = {}
+    for name in baseline["directions"]:
+        baseline_values = baseline["directions"][name]
+        control_values = control["directions"][name]
+        baseline_projection = float(
+            baseline_values["real_projection_coefficient"]
+        )
+        control_projection = float(
+            control_values["real_projection_coefficient"]
+        )
+        comparisons[name] = {
+            "baseline_real_projection_coefficient": baseline_projection,
+            "control_real_projection_coefficient": control_projection,
+            "absolute_real_projection_reduced": bool(
+                abs(control_projection) < abs(baseline_projection)
+            ),
+            "absolute_real_projection_ratio_control_to_baseline": float(
+                abs(control_projection)
+                / max(abs(baseline_projection), np.finfo(float).eps)
+            ),
+            "baseline_real_cosine": float(baseline_values["real_cosine"]),
+            "control_real_cosine": float(control_values["real_cosine"]),
+            "baseline_complex_coherence": float(
+                baseline_values["complex_coherence"]
+            ),
+            "control_complex_coherence": float(
+                control_values["complex_coherence"]
+            ),
+        }
+    return {
+        "directions": comparisons,
+        "primary_postfreeze_directional_criterion": (
+            "lower_absolute_best_candidate_real_projection_coefficient"
+        ),
+        "primary_postfreeze_directional_criterion_observed": comparisons[
+            "best_candidate_manifold"
+        ]["absolute_real_projection_reduced"],
+        "simulation_evaluation_only": True,
+        "scientific_pass_fail_conclusion": False,
+    }
+
+
+def _feedback_measurement_metrics(
+    reconstruction: dict[str, Any]
+) -> dict[str, Any]:
+    loss_curve = np.asarray(reconstruction["loss_curve"], dtype=np.float64)
+    residual_curve = np.asarray(
+        reconstruction["detector_relative_residual_curve"], dtype=np.float64
+    )
+    gradient_curve = np.asarray(
+        reconstruction["gradient_l2_norm_curve"], dtype=np.float64
+    )
+    result = {
+        "initial_loss": float(loss_curve[0]),
+        "final_loss": float(loss_curve[-1]),
+        "initial_detector_relative_residual": float(residual_curve[0]),
+        "final_detector_relative_residual": float(residual_curve[-1]),
+        "initial_gradient_l2_norm": float(gradient_curve[0]),
+        "final_gradient_l2_norm": float(gradient_curve[-1]),
+        "loss_nonincreasing": bool(np.all(np.diff(loss_curve) <= 0.0)),
+        "iterations_completed": int(reconstruction["iterations_completed"]),
+        "stopping_reason": str(reconstruction["stopping_reason"]),
+        "algorithm": str(reconstruction["algorithm"]),
+        "minimum_accepted_step": float(
+            np.min(reconstruction["accepted_step_curve"][1:])
+        ),
+        "maximum_accepted_step": float(
+            np.max(reconstruction["accepted_step_curve"][1:])
+        ),
+        "total_backtracking_steps": int(
+            reconstruction["total_backtracking_steps"]
+        ),
+    }
+    if "cg_iterations_curve" in reconstruction:
+        result.update(
+            {
+                "cg_iterations_curve": reconstruction[
+                    "cg_iterations_curve"
+                ],
+                "cg_relative_residual_curve": reconstruction[
+                    "cg_relative_residual_curve"
+                ],
+                "spectral_radius_estimate": float(
+                    reconstruction["spectral_radius_estimate"]
+                ),
+                "damping": float(reconstruction["damping"]),
+            }
+        )
+    return result
+
+
+def _feedback_metadata(
+    config: dict[str, Any], config_path: Path
+) -> dict[str, Any]:
+    provenance = config["provenance"]
+    control = config["reconstruction"]["exp053_feedback_control"]
+    return {
+        "experiment_id": "exp042",
+        "created_at_utc": created_at_utc(),
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "git_commit": get_git_commit(PROJECT_ROOT),
+        "source_config": str(config_path),
+        "development_status": (
+            "Directed development control / No scientific pass-fail conclusion"
+        ),
+        "run_role": str(config["execution"]["mode"]),
+        "unfreeze_trigger": str(control["trigger"]),
+        "operator_branch": provenance["source_branch"],
+        "development_data_origin": provenance["development_data_origin"],
+        "reference_validated": False,
+        "full_tgv_reference_authorized": False,
+        "known_sample_b": True,
+        "probe_only_reconstruction": True,
+        "matched_q4_data_and_operator": True,
+        "raw_control_probe_truth_aligned": False,
+        "truth_used_by_optimizer": False,
+        "truth_used_by_branch_selection": False,
+        "truth_used_by_stopping": False,
+        "exp053_feedback_loaded_after_reconstruction": True,
+        "scientific_claim_boundary": (
+            "one truth-free reconstruction-direction control under the frozen "
+            "exp040 scalar working model; downstream waist bias remains for "
+            "the unchanged exp053 fitter to validate"
+        ),
+    }
+
+
+def _feedback_hdf5_payload(
+    config: dict[str, Any],
+    metadata: dict[str, Any],
+    metrics: dict[str, Any],
+    case: dict[str, Any],
+    baseline: dict[str, Any],
+    control: dict[str, Any],
+    baseline_evaluation: dict[str, Any],
+    control_evaluation: dict[str, Any],
+    baseline_directional: dict[str, Any],
+    control_directional: dict[str, Any],
+    sources: dict[str, Any],
+) -> dict[str, Any]:
+    operator = case["operator"]
+    if not isinstance(operator, MatchedKnownBProbeOperator):
+        raise TypeError("case operator has the wrong type.")
+    source_payload = {
+        key: value
+        for key, value in sources.items()
+        if key
+        not in {"fixed_directions", "prior_weak_direction", "baseline_source"}
+    }
+    return {
+        "I_stack": case["I_stack"],
+        "scan_positions": case["scan_positions"],
+        "instrument": {
+            "wavelength_m": config["optics"]["wavelength_m"],
+            "internal_reference_index": config["optics"][
+                "internal_reference_index"
+            ],
+            "external_medium_index": config["optics"][
+                "external_medium_index"
+            ],
+            "z_AB_m": config["optics"]["z_AB_m"],
+            "z_BC_m": config["optics"]["z_BC_m"],
+            "probe_grid": {
+                "plane": "B",
+                "axis_order": ["y", "x"],
+                "native_shape": operator.native_shape,
+                "open_shape": operator.open_shape,
+                "node_dx_m": operator.node_dx_m,
+            },
+            "detector": {
+                "model": config["detector"]["model"],
+                "quadrature_factor": operator.quadrature_factor,
+                "pixel_size_m": config["detector"]["pixel_size_m"],
+                "native_roi_shape": operator.detector_roi_shape,
+                "quadrature_weights": np.full(
+                    operator.quadrature_factor**2,
+                    1.0 / operator.quadrature_factor**2,
+                ),
+            },
+        },
+        "sample": {
+            "sample_a": dict(config["sample_a"]),
+            "sample_b": dict(config["sample_b"]),
+        },
+        "truth": {
+            "identity": (
+                "simulation truth under the selected exp040 scalar working model"
+            ),
+            "reference_validated": False,
+            "full_tgv_reference_authorized": False,
+            "P_B_true": case["P_B_true"],
+            "B_true": case["B_true"],
+            "B_support_true": case["B_support_true"],
+            "U_A_exit_true": case["U_A_exit_true"],
+            "z_m": case["z_m"],
+            "slice_widths_m": case["slice_widths_m"],
+            "D_z_m": case["D_z_m"],
+        },
+        "reconstruction": {
+            "exp053_feedback_control": {
+                "design": dict(
+                    config["reconstruction"]["exp053_feedback_control"]
+                ),
+                "branches": {
+                    "baseline_gn_scaled_armijo": (
+                        _feedback_branch_hdf5_payload(
+                            baseline,
+                            baseline_evaluation,
+                            baseline_directional,
+                        )
+                    ),
+                    "spectrally_damped_gn_cg": (
+                        _feedback_branch_hdf5_payload(
+                            control,
+                            control_evaluation,
+                            control_directional,
+                        )
+                    ),
+                },
+                "postfreeze_simulation_evaluation_only": {
+                    "source": source_payload,
+                    "fixed_direction_fields": sources["fixed_directions"],
+                    "prior_pairwise_weak_direction_unit_l2": sources[
+                        "prior_weak_direction"
+                    ],
+                    "comparison": metrics[
+                        "postfreeze_simulation_evaluation_only"
+                    ]["comparison"],
+                    "enters_optimizer": False,
+                    "enters_branch_selection": False,
+                    "enters_stopping": False,
+                },
+            }
+        },
+        "config_yaml": config_to_yaml(config),
+        "metadata": metadata,
+        "metrics": metrics,
+    }
+
+
+def _save_feedback_figure(
+    run_dir: Path,
+    baseline: dict[str, Any],
+    control: dict[str, Any],
+    baseline_directional: dict[str, Any],
+    control_directional: dict[str, Any],
+    filename: str,
+) -> Path:
+    figure_path = run_dir / "figures" / filename
+    figure_path.parent.mkdir(parents=True, exist_ok=True)
+    canvas = Image.new("RGB", (1500, 900), "white")
+    draw = ImageDraw.Draw(canvas)
+    draw.text(
+        (390, 18),
+        "exp042 directed reconstruction control from exp053 feedback",
+        fill="black",
+    )
+    colors = {"baseline": "#1f77b4", "damped GN-CG": "#d62728"}
+
+    def panel(
+        column: int,
+        row: int,
+        title: str,
+        series: dict[str, list[float]],
+        *,
+        log_y: bool,
+        labels: list[str] | None = None,
+    ) -> None:
+        left = 35 + column * 490
+        top = 65 + row * 405
+        right = left + 450
+        bottom = top + 340
+        plot_left, plot_top = left + 55, top + 35
+        plot_right, plot_bottom = right - 15, bottom - 55
+        draw.rectangle((left, top, right, bottom), outline="#aaaaaa")
+        draw.text((left + 10, top + 8), title, fill="black")
+        transformed: dict[str, list[float]] = {}
+        for name, values in series.items():
+            finite = [float(value) for value in values]
+            transformed[name] = [
+                float(np.log10(max(value, np.finfo(float).tiny)))
+                if log_y
+                else value
+                for value in finite
+            ]
+        all_values = [value for values in transformed.values() for value in values]
+        low = min(all_values)
+        high = max(all_values)
+        if high <= low:
+            high = low + 1.0
+        margin = 0.08 * (high - low)
+        low -= margin
+        high += margin
+        max_count = max(len(values) for values in transformed.values())
+        draw.line((plot_left, plot_top, plot_left, plot_bottom), fill="black")
+        draw.line((plot_left, plot_bottom, plot_right, plot_bottom), fill="black")
+        draw.text((left + 5, plot_top), f"{high:.3g}", fill="#444444")
+        draw.text((left + 5, plot_bottom - 10), f"{low:.3g}", fill="#444444")
+        for index, (name, values) in enumerate(transformed.items()):
+            points: list[tuple[float, float]] = []
+            for position, value in enumerate(values):
+                x_fraction = position / max(max_count - 1, 1)
+                y_fraction = (value - low) / (high - low)
+                points.append(
+                    (
+                        plot_left + x_fraction * (plot_right - plot_left),
+                        plot_bottom - y_fraction * (plot_bottom - plot_top),
+                    )
+                )
+            if len(points) > 1:
+                draw.line(points, fill=colors[name], width=3)
+            for x_value, y_value in points:
+                draw.ellipse(
+                    (x_value - 3, y_value - 3, x_value + 3, y_value + 3),
+                    fill=colors[name],
+                )
+            draw.text(
+                (plot_left + index * 145, bottom - 20),
+                name,
+                fill=colors[name],
+            )
+        if labels is not None:
+            for index, label in enumerate(labels):
+                x_fraction = index / max(len(labels) - 1, 1)
+                draw.text(
+                    (
+                        plot_left + x_fraction * (plot_right - plot_left) - 20,
+                        plot_bottom + 8,
+                    ),
+                    label,
+                    fill="#333333",
+                )
+
+    panel(
+        0,
+        0,
+        "Measurement loss (log10)",
+        {
+            "baseline": baseline["loss_curve"].tolist(),
+            "damped GN-CG": control["loss_curve"].tolist(),
+        },
+        log_y=True,
+    )
+    panel(
+        1,
+        0,
+        "Detector relative residual (log10)",
+        {
+            "baseline": baseline["detector_relative_residual_curve"].tolist(),
+            "damped GN-CG": control[
+                "detector_relative_residual_curve"
+            ].tolist(),
+        },
+        log_y=True,
+    )
+    panel(
+        2,
+        0,
+        "Gradient norm (log10)",
+        {
+            "baseline": baseline["gradient_l2_norm_curve"].tolist(),
+            "damped GN-CG": control["gradient_l2_norm_curve"].tolist(),
+        },
+        log_y=True,
+    )
+    error_names = [
+        "raw_complex_relative_l2",
+        "amplitude_relative_l2",
+        "amplitude_weighted_phase_sensitive_relative_l2",
+    ]
+    panel(
+        0,
+        1,
+        "Simulation-only probe error",
+        {
+            "baseline": [
+                baseline_directional["probe_error"][name]
+                for name in error_names
+            ],
+            "damped GN-CG": [
+                control_directional["probe_error"][name]
+                for name in error_names
+            ],
+        },
+        log_y=False,
+        labels=["raw", "amplitude", "phase"],
+    )
+    direction_names = [
+        "minus_0p125um",
+        "plus_0p125um",
+        "best_candidate_manifold",
+    ]
+    direction_labels = ["-0.125um", "+0.125um", "best"]
+    panel(
+        1,
+        1,
+        "Simulation-only real projection",
+        {
+            "baseline": [
+                baseline_directional["directions"][name][
+                    "real_projection_coefficient"
+                ]
+                for name in direction_names
+            ],
+            "damped GN-CG": [
+                control_directional["directions"][name][
+                    "real_projection_coefficient"
+                ]
+                for name in direction_names
+            ],
+        },
+        log_y=False,
+        labels=direction_labels,
+    )
+    panel(
+        2,
+        1,
+        "Fixed-direction Jacobian gain (log10)",
+        {
+            "baseline": [
+                baseline_directional["directions"][name][
+                    "direct_jacobian_rms_gain_at_reconstruction"
+                ]
+                for name in direction_names
+            ],
+            "damped GN-CG": [
+                control_directional["directions"][name][
+                    "direct_jacobian_rms_gain_at_reconstruction"
+                ]
+                for name in direction_names
+            ],
+        },
+        log_y=True,
+        labels=direction_labels,
+    )
+    canvas.save(figure_path, format="PNG")
+    return figure_path
+
+
+def _validate_feedback_artifacts(
+    run_dir: Path,
+    config: dict[str, Any],
+    baseline: dict[str, Any],
+    control: dict[str, Any],
+    source_baseline: np.ndarray,
+) -> None:
+    required = {
+        run_dir / "config.yaml",
+        run_dir / "metadata.json",
+        run_dir / "metrics.json",
+        run_dir / "run_state.json",
+        run_dir / "outputs" / config["output"]["hdf5_filename"],
+        run_dir
+        / "figures"
+        / config["output"]["exp053_feedback_figure_filename"],
+    }
+    missing = [str(path) for path in required if not path.is_file()]
+    if missing:
+        raise RuntimeError(f"Missing exp053-feedback artifacts: {missing}")
+    hdf5_path = run_dir / "outputs" / config["output"]["hdf5_filename"]
+    root = "entry/reconstruction/exp053_feedback_control/branches"
+    with h5py.File(hdf5_path, "r") as h5:
+        if h5["entry/config_yaml"].asstr()[()] != config_to_yaml(config):
+            raise RuntimeError("The embedded feedback-control config changed.")
+        baseline_dataset = h5[
+            f"{root}/baseline_gn_scaled_armijo/P_B_rec"
+        ][...]
+        control_dataset = h5[
+            f"{root}/spectrally_damped_gn_cg/P_B_rec"
+        ][...]
+        if not np.array_equal(baseline_dataset, baseline["P_B_rec"]):
+            raise RuntimeError("The raw feedback baseline changed in HDF5.")
+        if not np.array_equal(control_dataset, control["P_B_rec"]):
+            raise RuntimeError("The raw GN-CG control changed in HDF5.")
+        if not np.array_equal(baseline_dataset, source_baseline):
+            raise RuntimeError("The feedback baseline no longer matches exp053.")
+        if not np.array_equal(
+            h5[f"{root}/spectrally_damped_gn_cg/P_B_init"][...],
+            h5[f"{root}/baseline_gn_scaled_armijo/P_B_init"][...],
+        ):
+            raise RuntimeError("The feedback branch initializations differ.")
+        if not _all_numeric_hdf5_finite(h5["entry"]):
+            raise RuntimeError("Feedback-control HDF5 contains non-finite data.")
+    figure_path = (
+        run_dir
+        / "figures"
+        / config["output"]["exp053_feedback_figure_filename"]
+    )
+    with Image.open(figure_path) as image:
+        pixels = np.asarray(image)
+    if pixels.ndim not in {2, 3} or not np.all(np.isfinite(pixels)):
+        raise RuntimeError("The feedback-control figure is unreadable.")
+
+
+def _run_exp053_feedback_control(config_path: Path) -> Path:
+    config_path = config_path.resolve()
+    config = load_config(config_path)
+    validate_exp042_config(config)
+    output = config["output"]
+    output_root = Path(output["root"])
+    if not output_root.is_absolute():
+        output_root = PROJECT_ROOT / output_root
+    run_dir = make_run_dir(output_root, str(output["run_name"]))
+    save_config(run_dir / "config.yaml", config)
+    state_path = run_dir / "run_state.json"
+    save_json(
+        state_path,
+        {
+            "status": "running",
+            "artifacts_validated": False,
+            "started_at_utc": created_at_utc(),
+        },
+    )
+    started = time.perf_counter()
+    try:
+        case = build_matched_development_case(config)
+        operator = case["operator"]
+        if not isinstance(operator, MatchedKnownBProbeOperator):
+            raise TypeError("case operator has the wrong type.")
+        measured = np.asarray(case["I_stack"], dtype=np.float64)
+        initial = operator.homogeneous_probe_native.copy()
+        baseline = reconstruct_known_b_probe(
+            operator, measured, initial, config["reconstruction"]
+        )
+        control_settings = config["reconstruction"][
+            "exp053_feedback_control"
+        ]
+        control = reconstruct_known_b_probe_damped_gn_cg(
+            operator,
+            measured,
+            initial,
+            config["reconstruction"],
+            control_settings,
+        )
+        sources = _load_feedback_evaluation_sources(
+            config, case, baseline
+        )
+        baseline_evaluation = simulation_evaluation_only(
+            baseline, case["P_B_true"]
+        )
+        control_evaluation = simulation_evaluation_only(
+            control, case["P_B_true"]
+        )
+        baseline_directional = exp053_directional_evaluation_simulation_only(
+            operator,
+            baseline["P_B_rec"],
+            case["P_B_true"],
+            sources["fixed_directions"],
+            sources["prior_weak_direction"],
+        )
+        control_directional = exp053_directional_evaluation_simulation_only(
+            operator,
+            control["P_B_rec"],
+            case["P_B_true"],
+            sources["fixed_directions"],
+            sources["prior_weak_direction"],
+        )
+        comparison = _feedback_direction_comparison(
+            baseline_directional, control_directional
+        )
+        consistency = operator_consistency_metrics(case, config)
+        baseline_action_units = int(
+            1
+            + baseline["iterations_completed"]
+            + baseline["total_backtracking_steps"]
+        )
+        control_action_units = int(control["operator_action_budget_units"])
+        elapsed = time.perf_counter() - started
+        metrics = {
+            "development_status": (
+                "Directed development control / "
+                "No scientific pass-fail conclusion"
+            ),
+            "run_role": str(config["execution"]["mode"]),
+            "unfreeze_trigger": str(control_settings["trigger"]),
+            "design": {
+                "changed_factor": str(control_settings["changed_factor"]),
+                "baseline_algorithm": str(
+                    control_settings["baseline_algorithm"]
+                ),
+                "control_algorithm": str(
+                    control_settings["control_algorithm"]
+                ),
+                "operator_action_budget_contract": control_settings[
+                    "operator_action_budget_contract"
+                ],
+                "truth_used_by_optimizer": False,
+                "truth_used_by_branch_selection": False,
+                "truth_used_by_stopping": False,
+            },
+            "branches": {
+                "baseline_gn_scaled_armijo": {
+                    **_feedback_measurement_metrics(baseline),
+                    "operator_action_budget_units": baseline_action_units,
+                    "simulation_evaluation_only": baseline_directional,
+                },
+                "spectrally_damped_gn_cg": {
+                    **_feedback_measurement_metrics(control),
+                    "operator_action_budget_units": control_action_units,
+                    "normal_operator_action_count": control[
+                        "normal_operator_action_count"
+                    ],
+                    "loss_gradient_evaluation_count": control[
+                        "loss_gradient_evaluation_count"
+                    ],
+                    "spectral_radius_estimate": control[
+                        "spectral_radius_estimate"
+                    ],
+                    "damping": control["damping"],
+                    "estimated_damped_condition_upper_bound": control[
+                        "estimated_damped_condition_upper_bound"
+                    ],
+                    "simulation_evaluation_only": control_directional,
+                },
+            },
+            "truth_free_comparison": {
+                "same_I_stack_operator_B_scan": True,
+                "same_initial_probe_exact": bool(
+                    np.array_equal(
+                        baseline["P_B_init"], control["P_B_init"]
+                    )
+                ),
+                "baseline_source_replay_exact": sources[
+                    "baseline_source_replay_exact"
+                ],
+                "operator_reference_truth_replay_exact": sources[
+                    "operator_reference_truth_replay_exact"
+                ],
+                "baseline_loss_nonincreasing": bool(
+                    np.all(np.diff(baseline["loss_curve"]) <= 0.0)
+                ),
+                "control_loss_nonincreasing": bool(
+                    np.all(np.diff(control["loss_curve"]) <= 0.0)
+                ),
+                "baseline_operator_action_budget_units": baseline_action_units,
+                "control_operator_action_budget_units": control_action_units,
+                "nominal_equal_budget_observed": bool(
+                    baseline_action_units == control_action_units
+                ),
+                "truth_used_by_comparison": False,
+            },
+            "postfreeze_simulation_evaluation_only": {
+                "source": {
+                    key: value
+                    for key, value in sources.items()
+                    if key
+                    not in {
+                        "fixed_directions",
+                        "prior_weak_direction",
+                        "baseline_source",
+                    }
+                },
+                "baseline": baseline_directional,
+                "control": control_directional,
+                "comparison": comparison,
+                "loaded_after_reconstruction": True,
+                "enters_optimizer": False,
+                "enters_branch_selection": False,
+                "enters_stopping": False,
+            },
+            "operator_consistency": consistency,
+            "runtime_seconds": elapsed,
+            "known_sample_b": True,
+            "sample_b_updated": False,
+            "reconstruction_performed_in_this_run": True,
+            "waist_estimation_performed": False,
+            "scientific_pass_fail_conclusion": False,
+            "reference_validated": False,
+            "full_tgv_reference_authorized": False,
+        }
+        metadata = _feedback_metadata(config, config_path)
+        save_json(run_dir / "metadata.json", metadata)
+        save_json(run_dir / "metrics.json", metrics)
+        hdf5_path = run_dir / "outputs" / output["hdf5_filename"]
+        save_ptycho_hdf5(
+            hdf5_path,
+            **_feedback_hdf5_payload(
+                config,
+                metadata,
+                metrics,
+                case,
+                baseline,
+                control,
+                baseline_evaluation,
+                control_evaluation,
+                baseline_directional,
+                control_directional,
+                sources,
+            ),
+        )
+        figure_path = _save_feedback_figure(
+            run_dir,
+            baseline,
+            control,
+            baseline_directional,
+            control_directional,
+            str(output["exp053_feedback_figure_filename"]),
+        )
+        _validate_feedback_artifacts(
+            run_dir,
+            config,
+            baseline,
+            control,
+            np.asarray(sources["baseline_source"], dtype=np.complex128),
+        )
+        control_dataset_path = (
+            "/entry/reconstruction/exp053_feedback_control/branches/"
+            "spectrally_damped_gn_cg/P_B_rec"
+        )
+        save_json(
+            state_path,
+            {
+                "status": "complete",
+                "artifacts_validated": True,
+                "completed_at_utc": created_at_utc(),
+                "runtime_seconds": elapsed,
+                "config_sha256": _sha256(run_dir / "config.yaml"),
+                "metadata_sha256": _sha256(run_dir / "metadata.json"),
+                "metrics_sha256": _sha256(run_dir / "metrics.json"),
+                "hdf5_sha256": _sha256(hdf5_path),
+                "raw_control_dataset_path": control_dataset_path,
+                "raw_control_dataset_sha256": _sha256_array_bytes(
+                    control["P_B_rec"]
+                ),
+                "figure_count": 1,
+                "figure_sha256": {
+                    figure_path.name: _sha256(figure_path)
+                },
+            },
+        )
+    except Exception as error:
+        save_json(
+            state_path,
+            {
+                "status": "failed",
+                "artifacts_validated": False,
+                "failed_at_utc": created_at_utc(),
+                "error": f"{type(error).__name__}: {error}",
+                "traceback": traceback.format_exc(),
+            },
+        )
+        raise
+    return run_dir
+
+
 def run(config_path: Path) -> Path:
     """Dispatch the current registered exp042 execution mode."""
 
@@ -3328,6 +4278,8 @@ def run(config_path: Path) -> Path:
         return _run_detector_quadrature_ablation(config_path)
     if mode == "local_spectral_diagnostic_from_prior_run":
         return _run_local_spectral_diagnostic(config_path)
+    if mode == "exp053_feedback_damped_gauss_newton_control":
+        return _run_exp053_feedback_control(config_path)
     return _run_full_baseline(config_path)
 
 
@@ -3337,7 +4289,7 @@ def main() -> None:
     print(f"run_dir: {run_dir}")
     print(
         "development_status: "
-        "Development baseline / No scientific pass-fail conclusion"
+        "Directed development control / No scientific pass-fail conclusion"
     )
     print("artifacts_validated: true")
 

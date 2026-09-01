@@ -17,8 +17,13 @@ from tgv_ptycho.recon.exp042 import (
     Q1_POINT_MISMATCH_READOUT,
     MatchedKnownBProbeOperator,
     build_matched_development_case,
+    damped_gauss_newton_cg_direction,
     detector_quadrature_ablation_consistency_metrics,
+    direction_metrics_simulation_only,
+    estimate_gauss_newton_spectral_radius,
+    exp053_directional_evaluation_simulation_only,
     gauss_newton_directional_curvature,
+    gauss_newton_normal_action,
     gauss_newton_step_diagnostic,
     intensity_jacobian_adjoint_relative_error,
     intensity_jacobian_directional_relative_error,
@@ -33,6 +38,7 @@ from tgv_ptycho.recon.exp042 import (
     point_readout_adjoint_relative_error,
     quadrature_adjoint_relative_error,
     reconstruct_known_b_probe,
+    reconstruct_known_b_probe_damped_gn_cg,
     shift_adjoint_relative_error,
     simulation_evaluation_only,
     truth_free_detector_quadrature_ablation_diagnostic,
@@ -70,9 +76,9 @@ def test_exp042_config_and_shapes(
     assert case["I_stack"].dtype == np.float64
     ablation = config["verification"]["detector_quadrature_ablation"]
     assert config["execution"]["mode"] == (
-        "detector_quadrature_three_branch_control"
+        "exp053_feedback_damped_gauss_newton_control"
     )
-    assert ablation["enabled"] is True
+    assert ablation["enabled"] is False
     assert ablation["equal_iteration_budget"] == 60
     assert ablation["checkpoint_interval"] == 5
     assert ablation["reference_branch"] == "matched_q4"
@@ -95,6 +101,20 @@ def test_exp042_config_and_shapes(
     assert ablation["truth_used_by_stopping"] is False
     assert ablation["q1_branch_is_exp040_matched"] is False
     assert ablation["q1_q1_matched_control_included"] is True
+    feedback = config["reconstruction"]["exp053_feedback_control"]
+    assert feedback["enabled"] is True
+    assert feedback["changed_factor"] == "reconstruction_search_direction_only"
+    assert feedback["control_outer_iterations"] == 6
+    assert feedback["spectral_radius_power_iterations"] == 6
+    assert feedback["damping_relative_to_spectral_radius"] == 1.0e-4
+    assert feedback["cg_max_iterations"] == 8
+    assert feedback["truth_used_by_cg"] is False
+    assert feedback["operator_action_budget_contract"][
+        "baseline_nominal_units_if_first_trial_accepted"
+    ] == 61
+    assert feedback["operator_action_budget_contract"][
+        "control_nominal_units_if_first_trial_accepted"
+    ] == 61
     stability = config["reconstruction"]["initialization_stability_control"]
     assert stability["enabled"] is False
     assert stability["truth_used_by_initialization"] is False
@@ -341,6 +361,131 @@ def test_intensity_jacobian_and_gauss_newton_curvature(
         diagnostic["gradient_squared_norm"]
         / diagnostic["gauss_newton_directional_curvature"]
     )
+
+
+def test_spectrally_damped_gn_cg_is_deterministic_and_truth_free(
+    development_case: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    config, case = development_case
+    operator = case["operator"]
+    probe = operator.homogeneous_probe_native.copy()
+    _, gradient, _ = operator.loss_and_gradient(probe, case["I_stack"])
+    rng = np.random.default_rng(20260854)
+    left = rng.normal(size=operator.native_shape) + 1j * rng.normal(
+        size=operator.native_shape
+    )
+    right = rng.normal(size=operator.native_shape) + 1j * rng.normal(
+        size=operator.native_shape
+    )
+    action_left = gauss_newton_normal_action(operator, probe, left)
+    action_right = gauss_newton_normal_action(operator, probe, right)
+    left_product = float(
+        np.real(np.sum(np.conj(left) * action_right, dtype=np.complex128))
+    )
+    right_product = float(
+        np.real(np.sum(np.conj(action_left) * right, dtype=np.complex128))
+    )
+    assert left_product == pytest.approx(right_product, rel=1.0e-10)
+    assert float(
+        np.real(np.sum(np.conj(left) * action_left, dtype=np.complex128))
+    ) >= 0.0
+
+    spectral = estimate_gauss_newton_spectral_radius(
+        operator, probe, iterations=2, seed=20260854
+    )
+    spectral_repeat = estimate_gauss_newton_spectral_radius(
+        operator, probe, iterations=2, seed=20260854
+    )
+    assert spectral["spectral_radius_estimate"] > 0.0
+    assert np.array_equal(
+        spectral["rayleigh_curve"], spectral_repeat["rayleigh_curve"]
+    )
+    damping = 1.0e-4 * float(spectral["spectral_radius_estimate"])
+    solve = damped_gauss_newton_cg_direction(
+        operator,
+        probe,
+        gradient,
+        damping=damping,
+        max_iterations=3,
+        relative_residual_tolerance=0.0,
+    )
+    solve_repeat = damped_gauss_newton_cg_direction(
+        operator,
+        probe,
+        gradient,
+        damping=damping,
+        max_iterations=3,
+        relative_residual_tolerance=0.0,
+    )
+    assert solve["iterations_completed"] == 3
+    assert solve["gradient_direction_real_inner_product"] > 0.0
+    assert np.array_equal(solve["direction"], solve_repeat["direction"])
+    assert solve["truth_used_by_cg"] is False
+
+    settings = deepcopy(config["reconstruction"]["exp053_feedback_control"])
+    settings.update(
+        control_outer_iterations=2,
+        spectral_radius_power_iterations=2,
+        cg_max_iterations=3,
+    )
+    result = reconstruct_known_b_probe_damped_gn_cg(
+        operator,
+        case["I_stack"],
+        probe,
+        config["reconstruction"],
+        settings,
+    )
+    repeat = reconstruct_known_b_probe_damped_gn_cg(
+        operator,
+        case["I_stack"],
+        probe,
+        config["reconstruction"],
+        settings,
+    )
+    assert result["iterations_completed"] == 2
+    assert np.all(np.diff(result["loss_curve"]) <= 0.0)
+    assert result["loss_curve"][-1] < result["loss_curve"][0]
+    assert np.array_equal(result["P_B_rec"], repeat["P_B_rec"])
+    assert result["truth_used_by_optimizer"] is False
+    assert result["operator_action_budget_units"] == 11
+    forbidden = deepcopy(settings)
+    forbidden["truth_used_by_cg"] = True
+    with pytest.raises(ValueError, match="truth boundary"):
+        reconstruct_known_b_probe_damped_gn_cg(
+            operator,
+            case["I_stack"],
+            probe,
+            config["reconstruction"],
+            forbidden,
+        )
+
+
+def test_exp053_directional_metrics_match_registered_definitions(
+    development_case: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    _, case = development_case
+    operator = case["operator"]
+    truth = case["P_B_true"]
+    direction = np.ones(truth.shape, dtype=np.complex128)
+    reconstruction = truth + 0.25 * direction
+    metrics = direction_metrics_simulation_only(
+        reconstruction - truth, direction
+    )
+    assert metrics["real_cosine"] == pytest.approx(1.0)
+    assert metrics["complex_coherence"] == pytest.approx(1.0)
+    assert metrics["real_projection_coefficient"] == pytest.approx(0.25)
+    evaluation = exp053_directional_evaluation_simulation_only(
+        operator,
+        reconstruction,
+        truth,
+        {"registered": direction},
+        direction,
+    )
+    assert evaluation["simulation_evaluation_only"] is True
+    assert evaluation["enters_optimizer"] is False
+    assert evaluation["directions"]["registered"][
+        "real_projection_coefficient"
+    ] == pytest.approx(0.25)
 
 
 def test_fully_reorthogonalized_lanczos_matches_real_diagonal_spectrum() -> None:
@@ -713,6 +858,8 @@ def test_detector_quadrature_ablation_runner_writes_auditable_artifacts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     config = load_config(CONFIG_PATH)
+    config["execution"]["mode"] = "detector_quadrature_three_branch_control"
+    config["verification"]["detector_quadrature_ablation"]["enabled"] = True
     config["sample_a"].update(
         shape=[32, 32],
         dx_m=1.5e-6,
@@ -805,6 +952,160 @@ def test_detector_quadrature_ablation_runner_writes_auditable_artifacts(
             "truth_free_pairwise_diagnostic/"
             "checkpoint_pairwise_prediction_relative_l2_curve"
         ].shape == (3, 3, 3)
+
+
+def test_exp053_feedback_runner_writes_raw_control_and_truth_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = load_config(CONFIG_PATH)
+    config["sample_a"].update(
+        shape=[32, 32],
+        dx_m=1.5e-6,
+        thickness_m=2.0e-5,
+        target_dz_m=2.0e-6,
+        d_top_m=1.5e-5,
+        d_waist_m=1.0e-5,
+        d_bottom_m=1.5e-5,
+        z_waist_m=1.0e-5,
+    )
+    config["probe_grid"].update(
+        native_shape=[32, 32],
+        node_dx_m=1.5e-6,
+        open_shape=[96, 96],
+        native_fov_m=[4.8e-5, 4.8e-5],
+        open_fov_m=[1.44e-4, 1.44e-4],
+    )
+    config["sample_b"].update(support_shape=[64, 64], feature_size_px=2)
+    config["scan"].update(
+        num_x=3,
+        num_y=3,
+        step_m=3.0e-6,
+        max_jitter_px=0,
+        jitter_quantum_m=1.5e-6,
+    )
+    config["detector"].update(
+        node_dx_m=1.5e-6,
+        pixel_size_m=6.0e-6,
+        native_roi_shape=[16, 16],
+        native_roi_fov_m=[9.6e-5, 9.6e-5],
+    )
+    config["output"].update(root="runs", run_name="tiny_exp042_feedback")
+    case = build_matched_development_case(config)
+    operator = case["operator"]
+    baseline = reconstruct_known_b_probe(
+        operator,
+        case["I_stack"],
+        operator.homogeneous_probe_native,
+        config["reconstruction"],
+    )
+
+    feedback = config["verification"][
+        "exp053_feedback_simulation_evaluation_only"
+    ]
+    feedback["source_run"] = "exp053_source"
+    exp053_hdf5 = (
+        tmp_path
+        / "exp053_source"
+        / "outputs"
+        / "exp053_reconstructed_probe_q8_cell_interval_fit.h5"
+    )
+    exp053_hdf5.parent.mkdir(parents=True)
+    baseline_path = str(feedback["source_baseline_target_hdf5_path"])
+    truth_path = str(feedback["source_operator_reference_hdf5_path"])
+    cache_path = (
+        "/entry/reconstruction/waist_fit/"
+        "reconstructed_target_q8_cell_interval/cache/P_B_candidate"
+    )
+    candidates = np.repeat(
+        case["P_B_true"][np.newaxis], 164, axis=0
+    ).astype(np.complex128)
+    candidates[161] += 0.03
+    candidates[162] -= 0.02j
+    candidates[163] += 0.01 + 0.01j
+    with h5py.File(exp053_hdf5, "w") as h5:
+        h5.create_dataset(baseline_path, data=baseline["P_B_rec"])
+        h5.create_dataset(truth_path, data=case["P_B_true"])
+        h5.create_dataset(cache_path, data=candidates)
+    feedback["source_hdf5_sha256"] = runner._sha256(exp053_hdf5)
+    feedback["source_baseline_target_dataset_sha256"] = (
+        runner._sha256_array_bytes(baseline["P_B_rec"])
+    )
+
+    feedback["prior_spectral_run"] = "spectral_source"
+    spectral_hdf5 = (
+        tmp_path
+        / "spectral_source"
+        / "outputs"
+        / "exp042_probe_reconstruction.h5"
+    )
+    spectral_hdf5.parent.mkdir(parents=True)
+    weak_direction = np.ones((32, 32), dtype=np.complex128)
+    weak_direction /= np.sqrt(np.sum(np.abs(weak_direction) ** 2))
+    spectral_primary = np.asarray(
+        baseline["P_B_rec"], dtype=np.complex128
+    ).copy()
+    spectral_primary[0, 0] += 1.0e-3
+    with h5py.File(spectral_hdf5, "w") as h5:
+        h5.create_dataset(
+            str(feedback["prior_pairwise_direction_hdf5_path"]),
+            data=weak_direction,
+        )
+        h5.create_dataset(
+            "/entry/reconstruction/local_spectral_diagnostic/"
+            "P_B_primary_probe_raw",
+            data=spectral_primary,
+        )
+    feedback["prior_spectral_hdf5_sha256"] = runner._sha256(
+        spectral_hdf5
+    )
+    config_path = tmp_path / "tiny_exp042_feedback.yaml"
+    save_config(config_path, config)
+    monkeypatch.setattr(runner, "PROJECT_ROOT", tmp_path)
+
+    run_dir = runner.run(config_path)
+
+    with (run_dir / "run_state.json").open("r", encoding="utf-8") as handle:
+        state = json.load(handle)
+    assert state["status"] == "complete"
+    assert state["artifacts_validated"] is True
+    assert state["raw_control_dataset_path"].endswith(
+        "/spectrally_damped_gn_cg/P_B_rec"
+    )
+    with (run_dir / "metrics.json").open("r", encoding="utf-8") as handle:
+        metrics = json.load(handle)
+    assert metrics["truth_free_comparison"]["same_initial_probe_exact"] is True
+    assert metrics["truth_free_comparison"][
+        "baseline_source_replay_exact"
+    ] is True
+    assert metrics["postfreeze_simulation_evaluation_only"][
+        "enters_optimizer"
+    ] is False
+    source = metrics["postfreeze_simulation_evaluation_only"]["source"]
+    assert source[
+        "prior_spectral_primary_exact_equal_to_exp053_baseline"
+    ] is False
+    assert source[
+        "prior_spectral_primary_relative_l2_to_exp053_baseline"
+    ] > 0.0
+    assert source["prior_weak_direction_transfer_is_cross_endpoint"] is True
+    hdf5_path = run_dir / "outputs" / config["output"]["hdf5_filename"]
+    with h5py.File(hdf5_path, "r") as h5:
+        root = h5["entry/reconstruction/exp053_feedback_control"]
+        assert set(root["branches"]) == {
+            "baseline_gn_scaled_armijo",
+            "spectrally_damped_gn_cg",
+        }
+        raw = root["branches/spectrally_damped_gn_cg/P_B_rec"]
+        aligned = root[
+            "branches/spectrally_damped_gn_cg/"
+            "simulation_evaluation_only/P_B_rec_global_phase_aligned"
+        ]
+        assert raw.shape == (32, 32)
+        assert raw.dtype == np.dtype(np.complex128)
+        assert aligned.shape == raw.shape
+        assert root[
+            "postfreeze_simulation_evaluation_only/enters_optimizer"
+        ][()] == np.bool_(False)
 
 
 def test_spectral_runner_writes_auditable_hdf5_and_figures(
