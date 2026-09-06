@@ -1,0 +1,191 @@
+experiment:
+  id: exp043
+  role: blind_probe_B_joint_reconstruction_on_exp042_authoritative_matched_q4_data
+  phase: Phase 5 reconstruction bridge
+  scientific_status: Formal preregistered / Pending execution
+execution:
+  stage: formal
+  scientific_gates_enabled: true
+  deterministic: true
+source:
+  experiment: exp042
+  run: runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260831_183139
+  hdf5: outputs/exp042_probe_reconstruction.h5
+  config: config.yaml
+  metadata: metadata.json
+  metrics: metrics.json
+  run_state: run_state.json
+  file_sha256:
+    hdf5: C48588FC47EED474CF047219A1DB26BCC9242961A58176CA9CCB879495FFA37D
+    config: 59860425AFAB3D07D6DA5D44A41085B3FA24E9EAFF6EE317ABE06B6BF0BA7276
+    metadata: 5B056A65302924A5C03E8EC5AAEB06B7C388F8888ED2BCCF86D24659C9CE7B2B
+    metrics: 195B001CC4EB90EE9B9B37ACACDEB599EF23D6379EEC0CA10025CB211D70615A
+    run_state: 75E70687CEA890E8CFFB9473F54080583685942CF45B70D5F89678621031905C
+  datasets:
+    I_stack: /entry/data/I_stack
+    scan_positions: /entry/data/scan_positions
+    P_B_true: /entry/truth/P_B_true
+    B_true: /entry/truth/B_true
+    authoritative_P_B_rec: /entry/reconstruction/exp053_feedback_control/branches/spectrally_damped_gn_cg/P_B_rec
+  dataset_sha256:
+    I_stack: BCE7A54EFBA46F6B856C592364823454864F528AC02A44C1C6BA67E46B105948
+    scan_positions: 63961ADAEC739EFCEABD8F7110A391F094851BFD02475AC23BA1AECEDD8ABCC5
+    P_B_true: FA61264AF0D96BF3393EC461E2147992FDE6926D0132B2346090790E40E8EBFD
+    B_true: 740EBB9B35D6132744ED56785BEA9D4034774CD1D1819D3B040D2C83D0653537
+    authoritative_P_B_rec: 194C7B950F8DCF2BF94212A6F63270296BC9EC79AE0C04ED557C864F5FE8EB07
+  operator_branch: R8 unified q8 finite-B open q4 scalar working model
+  reference_validated: false
+  full_tgv_reference_authorized: false
+loss:
+  type: mean_half_squared_pixel_intensity_residual
+  uses_measured_pixel_intensity_directly: true
+  amplitude_replacement: false
+gauge:
+  factorization_ambiguity_analyzed: true
+  primary_canonicalization: identity_under_frozen_homogeneous_reference_and_transparent_exterior
+  explanation: nonunit reciprocal scaling is not representable while the open-grid homogeneous probe reference and B exterior remain fixed
+  simulation_alignment: postfreeze_probe_least_squares_reciprocal_gain
+  truth_used_by_primary_gauge: false
+  gauge_test_factor_real: 1.1
+  gauge_test_factor_imag: 0.2
+operator_controls:
+  random_seed: 20260903
+  finite_difference_relative_step: 1.0e-6
+  tolerances:
+    replay_relative_l2_max: 1.0e-14
+    linear_adjoint_relative_error_max: 1.0e-11
+    intensity_jacobian_adjoint_relative_error_max: 1.0e-11
+    loss_directional_gradient_relative_error_max: 2.0e-6
+    B_jacobian_directional_relative_error_max: 2.0e-6
+    B_jacobian_adjoint_relative_error_max: 1.0e-11
+    B_phase_jacobian_directional_relative_error_max: 2.0e-6
+    B_phase_jacobian_adjoint_relative_error_max: 1.0e-11
+    combined_loss_directional_gradient_relative_error_max: 2.0e-6
+    B_normal_symmetry_relative_error_max: 1.0e-11
+    B_normal_psd_min: -1.0e-14
+    B_phase_normal_symmetry_relative_error_max: 1.0e-11
+    B_phase_normal_psd_min: -1.0e-14
+    exterior_max_abs: 0.0
+known_b_probe_control:
+  method: exact_exp042_spectrally_damped_gn_cg_replay
+  initialization: exp042_homogeneous_reference_probe
+  optimizer_settings_source: authoritative_exp042_run_config
+  acceptance:
+    authoritative_raw_relative_l2_max: 1.0e-14
+    detector_relative_residual_max: 0.0035
+    require_byte_exact: true
+known_probe_B_control:
+  initialization:
+    kind: homogeneous_transmission
+    seed: 20260904
+    phase_rms_rad: 0.05
+  optimizer:
+    algorithm: block_spectrally_damped_gn_cg_armijo
+    parameterization: phase_only_unit_modulus_on_active_support
+    outer_iterations: 8
+    spectral_radius_power_iterations: 4
+    spectral_radius_seed: 20260905
+    damping_relative_to_spectral_radius: 1.0e-4
+    cg_max_iterations: 4
+    cg_relative_residual_tolerance: 0.0
+    line_search_initial_scale: 1.0
+    backtracking_factor: 0.5
+    armijo_c: 1.0e-4
+    max_backtracking_steps: 24
+    minimum_step: 1.0e-12
+    gradient_norm_stop: 0.0
+    truth_used_by_optimizer: false
+    truth_used_by_spectral_radius: false
+    truth_used_by_damping: false
+    truth_used_by_stopping: false
+  acceptance:
+    detector_relative_residual_max: 0.04
+    final_to_initial_loss_ratio_max: 0.02
+    require_loss_nonincreasing: true
+blind:
+  algorithm: alternating_block_spectrally_damped_gn_cg
+  outer_sweeps: 6
+  checkpoint_selection_rule: fixed_final_outer_sweep
+  representative_branch: homogeneous_B
+  initial_probe: exp042_homogeneous_reference_probe
+  initializations:
+    - name: homogeneous_B
+      kind: homogeneous_transmission
+      seed: 20260906
+      phase_rms_rad: 0.05
+      seed_offset: 0
+    - name: seeded_phase_B
+      kind: seeded_zero_mean_phase
+      seed: 20260907
+      phase_rms_rad: 0.05
+      seed_offset: 100
+  probe_block:
+    algorithm: block_spectrally_damped_gn_cg_armijo
+    outer_iterations: 1
+    spectral_radius_power_iterations: 3
+    spectral_radius_seed: 20260908
+    damping_relative_to_spectral_radius: 1.0e-4
+    cg_max_iterations: 4
+    cg_relative_residual_tolerance: 0.0
+    line_search_initial_scale: 1.0
+    backtracking_factor: 0.5
+    armijo_c: 1.0e-4
+    max_backtracking_steps: 24
+    minimum_step: 1.0e-12
+    gradient_norm_stop: 0.0
+    truth_used_by_optimizer: false
+    truth_used_by_spectral_radius: false
+    truth_used_by_damping: false
+    truth_used_by_stopping: false
+  sample_b_block:
+    algorithm: block_spectrally_damped_gn_cg_armijo
+    parameterization: phase_only_unit_modulus_on_active_support
+    outer_iterations: 1
+    spectral_radius_power_iterations: 3
+    spectral_radius_seed: 20260909
+    damping_relative_to_spectral_radius: 1.0e-4
+    cg_max_iterations: 4
+    cg_relative_residual_tolerance: 0.0
+    line_search_initial_scale: 1.0
+    backtracking_factor: 0.5
+    armijo_c: 1.0e-4
+    max_backtracking_steps: 24
+    minimum_step: 1.0e-12
+    gradient_norm_stop: 0.0
+    truth_used_by_optimizer: false
+    truth_used_by_spectral_radius: false
+    truth_used_by_damping: false
+    truth_used_by_stopping: false
+  truth_used_by_initialization: false
+  truth_used_by_optimizer: false
+  truth_used_by_checkpoint_selection: false
+  truth_used_by_stopping: false
+formal_thresholds:
+  blind_detector_relative_residual_max: 0.03
+  repeat_prediction_relative_l2_max: 0.005
+  blind_probe_aligned_relative_l2_max: 0.25
+  blind_B_aligned_active_relative_l2_max: 0.35
+  blind_exit_wave_product_relative_l2_max: 0.25
+artifact_contract:
+  required_entry_children:
+    - config_yaml
+    - data
+    - instrument
+    - sample
+    - truth
+    - reconstruction
+    - metadata
+    - metrics
+  calibration_group_required: false
+  preprocessing_group_required: false
+  all_numeric_datasets_finite: true
+output:
+  root: runs
+  run_name: exp043_TGV_3d_multislice_blind_probe_B_reconstruction
+  hdf5_filename: exp043_blind_probe_B_reconstruction.h5
+  figure_filenames:
+    - exp043_controls_convergence.png
+    - exp043_probe_comparison.png
+    - exp043_sample_B_comparison.png
+    - exp043_detector_residual.png
+    - exp043_blind_block_gauge_stability.png
