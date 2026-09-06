@@ -1,0 +1,201 @@
+run:
+  output_root: runs
+
+experiment:
+  id: exp052
+  phase: Phase 5 projected diagnostic
+  role: 2d_projected_known_b_and_blind_reconstructed_probe_waist_fit
+  formal_layout: single_combined_formal
+
+source:
+  exp030:
+    experiment: exp030
+    run: runs/exp030_TGV_2d_effective_phase_20260810_121124
+    hdf5_relative_path: outputs/exp030_effective_phase.h5
+    target_dataset: /entry/truth/P_B_true
+    git_commit: e48932e0f5b77a9fc144e8b8ea2eb710952b21cb
+    shape_ny_nx: [384, 384]
+    num_frames: 49
+    axis_order: y_x
+    sha256:
+      config: B96667249BF343A94FC6C8347E8DC87EADF2170B439E7AB81E9845B30E00DC0B
+      metadata: 3344838EE6A4054E7CD55C6CF918BE44AA0A92AF6567C54A0828DB57869D35E8
+      metrics: ED74512B30DA9027B2B192A85C3D5C040A4BD88DED49439BC658AA8667E18818
+      run_state: 1CDC94725B7410EE29C5E66BEC87160CAEB641DB609B3F6DA4F78AB169088A09
+      hdf5: 350B85BAE727366893EC57331ACF05E78717591F15313B311899FD5949B7DEB6
+    target_bytes_sha256: A020FD6FACABC28A3CFE3D05B3A24C7A9284665BB7998D85C69BB305909BDA40
+    operator_array_sha256:
+      source_radius_m: 8DD1784D9339DAEC2C93B64E99C3313616A4D065C07D613615CE63463D4EB6FB
+      source_weights_m: A7A138C094305EC89BB83D1239AC3840202146A61931091C8A0A17CC970C5188
+      source_transmission_true: DB236D4BB1262127460A05E7262D56998D3D272032C036C3F53D57A860F89598
+      output_radius_m: 03CAFFA47FA56DAD5907340B83EDA2F7F5C3F9C9D894FC9E5F84A3F793E1ED9D
+      target_radial_probe: CDE1CBE5389BA6B19A380DE00A9B59E8BB291AA59807634466BCB678B83FC824
+  datasets:
+    I_stack: /entry/data/I_stack
+    scan_positions: /entry/data/scan_positions
+    B_true: /entry/truth/B_true
+    P_B_true: /entry/truth/P_B_true
+  dataset_bytes_sha256:
+    I_stack: 066901A76B3ED49AD4EA0CD897EE7979A8C54DE38BBFECA55C33DAE7410651D2
+    scan_positions: 9AD6B71D4D5977F88D01E37DB9C94B5A4D8D5B6A04486FA8CD36A4E711B7D168
+    B_true: 9527922B9F41E762A50CA6ADF878F5FA06184CA3C91EACAD15E873F0BA4D8AC9
+    P_B_true: A020FD6FACABC28A3CFE3D05B3A24C7A9284665BB7998D85C69BB305909BDA40
+  exp050_oracle:
+    run: runs/exp050_TGV_2d_projected_true_probe_waist_fit_20260902_192303
+    hdf5_relative_path: outputs/exp050_projected_true_probe_waist_fit.h5
+    frozen_source_config_sha256: E6691CB1C7093D8F48D55FC721554B65E1E1E1F6A7104D24663CEACF868B7097
+    frozen_body_sha256: EDBA033AFD74FD7C6A7AAFF95659A842950F042D7A3A760A9C52C56532095352
+    sha256:
+      config: 800FB8B33040FAFFDAA229DCF715751525F746AE983923321ADBEE0D049E019B
+      metadata: 14C34B9F82ABF409D9003E469F1ED78C6A9EAD6E728EBE5A18C93911A3255BFD
+      metrics: FF7E407E7EC6462601F0A6F094C7D3AF030ED8B3E083D2242839B7EF4F2E29E4
+      run_state: 4F3097FF1F998001D6060E4D108E5FD1009E47B6544F8B1D021D234DA6BC52B0
+      hdf5: BA6E18A99E7A21B8BFA571109A01FFB235B800E860E194D9BEBCB01D82AD69BD
+
+instrument:
+  wavelength_m: 5.32e-7
+  dx_m: 2.5e-7
+  z_AB_m: 1.0e-3
+  z_BC_m: 1.0e-3
+  detector_pixel_size_m: 2.5e-7
+  medium_index: 1.0
+
+sample_a:
+  model: exp030_continuous_axisymmetric_projected_phase
+  thickness_m: 7.0e-4
+  d_top_m: 5.0e-5
+  d_waist_true_m: 3.33e-5
+  d_bottom_m: 5.0e-5
+  z_waist_m: 3.5e-4
+  n_glass: 1.5
+  n_air: 1.0
+  center_xy_m: [0.0, 0.0]
+
+part_a:
+  label: known_b_probe_only
+  fixed_known_b: true
+  initialization: measurement_mean_amplitude_backpropagation
+  beta_probe: 0.5
+  shuffle_positions: true
+  seed: 20260733
+  correction_mode: adjoint_residual
+  denominator_mode: epie
+  object_boundary: periodic
+  truth_probe_used_by_optimizer: false
+
+part_b:
+  label: blind_epie_radial_output_range
+  selection_rule: fixed_authoritative_blind_long_final_1000_not_checkpoint_selected
+  raw_probe_dataset: /entry/reconstruction/operator_consistency_ablation/blind_long_study/baseline/P_B_rec_raw
+  raw_object_dataset: /entry/reconstruction/operator_consistency_ablation/blind_long_study/baseline/B_rec_raw
+  probe_init_dataset: /entry/reconstruction/operator_consistency_ablation/blind_long_study/baseline/P_B_init
+  object_init_dataset: /entry/reconstruction/operator_consistency_ablation/blind_long_study/baseline/B_init
+  loss_curve_dataset: /entry/reconstruction/operator_consistency_ablation/blind_long_study/baseline/loss_curve
+  final_loss_dataset: /entry/reconstruction/operator_consistency_ablation/blind_long_study/baseline/final_data_fidelity_loss
+  settings_group: /entry/reconstruction/operator_consistency_ablation/blind_long_study/baseline/settings
+  checkpoint_group_template: /entry/reconstruction/operator_consistency_ablation/blind_long_study/baseline/checkpoints/{iteration}
+  durable_checkpoint_relative_path: checkpoints/blind_long/baseline/iter_1000.h5
+  durable_checkpoint_sha256: 0D4FA5C9C49F29B00967776E3CFB4C06AFC4C421EB0EDD7DADD2624AAA37460C
+  expected_raw_probe_sha256: B750FB6C98289BB4832413FAC95F36A65800344C7990DED484BC8733CF41590C
+  expected_raw_object_sha256: 2886CC621EC5681E6C90065B1E06B6B522C7D60B68AF636811B678D8BC05F690
+  checkpoints_for_stability: [200, 500, 1000]
+  beta_probe: 0.08
+  beta_object: 0.5
+  correction_mode: adjoint_residual
+  denominator_mode: epie
+  probe_constraint: continuous_radial_output_range_constraint
+  object_amplitude_bounds: [1.0, 1.0]
+  object_boundary: periodic
+  truth_probe_used_by_optimizer: false
+  truth_object_used_by_optimizer: false
+
+gauge:
+  primary: global_phase_profiled_full_field
+  primary_reason: intensity_global_phase_symmetry_shared_by_both_arms
+  complex_scale_primary: false
+  complex_scale_reason: blind_object_unit_amplitude_constraint_fixes_magnitude_scale
+  affine_ramp_primary: false
+  affine_ramp_reason: known_B_fixes_ramp_and_blind_radial_probe_constraint_removes_ramp
+  diagnostics: [raw_full_field, complex_gain_profiled_full_field]
+
+preflight:
+  bounds_m: [3.23e-5, 3.43e-5]
+  global_step_m: 1.0e-7
+  fine_half_width_m: 1.0e-7
+  fine_step_m: 1.0e-8
+  refine_half_width_m: 2.0e-8
+  refine_step_m: 2.0e-9
+  loss_tie_tolerance: 1.0e-14
+  part_a_reconstruction:
+    num_iters: 30
+    checkpoint_iterations: [10, 30]
+    repeat: true
+  thresholds:
+    source_probe_replay_relative_l2_max: 1.0e-12
+    measurement_intensity_replay_relative_l2_max: 1.0e-12
+    measurement_amplitude_replay_relative_l2_max: 1.0e-12
+    adjoint_inner_product_relative_error_max: 1.0e-12
+    saved_residual_recompute_absolute_difference_max: 1.0e-12
+    part_a_final_data_fidelity_loss_max: 2.0e-5
+    part_a_fixed_B_max_abs_change_max: 1.0e-12
+    part_a_repeat_relative_l2_max: 1.0e-14
+    part_b_final_data_fidelity_loss_max: 5.0e-5
+    part_b_probe_update_relative_l2_min: 1.0e-6
+    part_b_object_update_relative_l2_min: 1.0e-6
+    checkpoint_estimate_spread_m_max: 2.0e-8
+    absolute_error_m_max: 2.0e-8
+    truth_to_interval_distance_m_max: 2.0e-8
+    interval_width_m_max: 2.0e-9
+    method_agreement_m_max: 2.0e-9
+
+formal:
+  bounds_m: [3.23e-5, 3.43e-5]
+  global_step_m: 5.0e-8
+  fine_half_width_m: 5.0e-8
+  fine_step_m: 5.0e-9
+  refine_half_width_m: 1.0e-8
+  refine_step_m: 1.0e-9
+  loss_tie_tolerance: 1.0e-14
+  part_a_reconstruction:
+    num_iters: 200
+    checkpoint_iterations: [50, 100, 200]
+    repeat: true
+  thresholds:
+    source_probe_replay_relative_l2_max: 1.0e-12
+    measurement_intensity_replay_relative_l2_max: 1.0e-12
+    measurement_amplitude_replay_relative_l2_max: 1.0e-12
+    adjoint_inner_product_relative_error_max: 1.0e-12
+    saved_residual_recompute_absolute_difference_max: 1.0e-12
+    part_a_final_data_fidelity_loss_max: 1.0e-6
+    part_a_fixed_B_max_abs_change_max: 1.0e-12
+    part_a_repeat_relative_l2_max: 1.0e-14
+    part_b_final_data_fidelity_loss_max: 5.0e-5
+    part_b_probe_update_relative_l2_min: 1.0e-6
+    part_b_object_update_relative_l2_min: 1.0e-6
+    checkpoint_estimate_spread_m_max: 1.0e-8
+    absolute_error_m_max: 1.0e-8
+    truth_to_interval_distance_m_max: 1.0e-8
+    interval_width_m_max: 1.0e-9
+    method_agreement_m_max: 1.0e-9
+
+output:
+  run_name: exp052_TGV_2d_projected_reconstructed_probe_waist_fit
+  hdf5_filename: exp052_projected_reconstructed_probe_waist_fit.h5
+  figures:
+    - exp052_reconstruction_convergence.png
+    - exp052_loss_landscapes.png
+    - exp052_raw_probe_fields.png
+    - exp052_best_fit_residuals.png
+    - exp052_gauge_diagnostics.png
+    - exp052_checkpoint_consistency.png
+    - exp052_oracle_known_blind_comparison.png
+  project_level_hdf5_schema_changed: false
+
+artifact_validation:
+  require_json_hdf5_status_consistency: true
+  require_all_numeric_finite: true
+  require_raw_aligned_separation: true
+  require_candidate_cache_mapping: true
+  require_figures_readable: true
+
+seed: 20260902
