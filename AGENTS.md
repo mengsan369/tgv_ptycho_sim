@@ -20,16 +20,20 @@ D_waist = min_z D(z)
 
 ## 2. 当前阶段
 
-截至 2026-09-01，以下状态已由对应代码、配置、测试和 timestamped run 确认；精确实验边界仍以各实验文档的实时状态节和 append-only authoritative section 为准：
+截至 2026-09-03，以下状态已由对应代码、配置、测试和 timestamped run 确认；精确实验边界仍以各实验文档的实时状态节和 append-only authoritative section 为准：
 
 - `exp001`、`exp010`：Phase 0 propagation sanity 和 Phase 1 known-probe object-only ePIE 已实现并运行验证。
 - `exp020`：Phase 2 在纯相位、无噪声、强先验和 matched inverse-crime 条件下完成 unknown-probe/A-plane 回传 baseline；不代表弱先验或真实三维恢复。
 - `exp030`、`exp031`：Phase 3 的二维 projected-phase observability，以及 finite nonperiodic B / illumination-spot 数值问题，均在各自预注册二维边界内 `Passed`。
 - `exp040`：Phase 4 scalar multislice working model 已完成 R0--R14B 多轮数值/reference 诊断，但总体仍为 `Inconclusive / Frozen / Paused`；`reference_validated=false`、`full_tgv_reference_authorized=false`。
 - `exp042`：单一无噪声 known-B matched-q4 case 的定向 probe-reconstruction control 已完成并验证；authoritative raw GN-CG probe 可作为 Phase 5 输入，但不构成 blind-B 或真实物理结论。
+- `exp043`：在同一 exp042 authoritative matched-q4 data/operator 下，alternating spectrally damped block GN-CG blind probe/B formal 已完成并冻结为 `Failed / measurement_consistent_but_component_recovery_non_identifiable`；P-only、B-only 和 blind measurement gates 均闭合，但冻结的 B/exit component gates 失败。不得用低 detector residual 宣称 blind components 唯一恢复；measurement-design 后续转 exp044。
+- `exp044`：large-canvas finite nonperiodic B与sample-A entrance fixed-total Gaussian的causal C0--C3 measurement-design formal已完成并冻结为 `Failed / blind_measurement_reconstruction_not_closed`。forward和E43/C0--C3 known-B controls闭合，但combined C3 blind detector residual与两初始化prediction repeatability失败；post-freeze B/exit metrics也未改善。不得把该结果改写成component-identifiability已闭合，或把当前beam/B/scan当作最优硬件设计。
+- `exp050`：exp030 continuous axisymmetric Fresnel--Hankel 2D projected working model 内、authoritative matched raw `P_B_true`、固定其他参数的单参数 `D_waist` oracle formal 已完成并为 `Passed`；5 nm profile-grid cell 只表示注册数值分辨单元，不是物理 uncertainty、resolution、detection limit 或真实三维精度。
+- `exp052`：同一 exp030 2D projected data/operator 内，known-B probe-only 重建与 genuine blind-ePIE joint-reconstruction 两条 raw `P_B_rec` 通道的单参数 `D_waist` combined formal 均已完成并为 `Passed`；两条 1 nm profile-grid cell 和零 registered displacement 只说明当前无噪声 matched working model 内的数值 self-consistency，不是实际不确定度、分辨率或三维精度。
 - `exp051`、`exp053`：selected exp040 scalar working model 内，fixed-q8、固定其他参数的 true-probe 与 reconstructed-probe 单参数 `D_waist` interval baselines 均已正式 `Passed`。这只关闭模型内数值 self-consistency，不是实际计量精度或不确定度结论。
-- `exp055`：nuisance / multi-parameter identifiability 仅保留职责，尚未预注册或启动；Phase 6--7 仍未开始。
-- 最近记录的全量测试为 `345 passed, 12 failed`；12 项均为既有 exp040 R10--R14B frozen-config SHA256 lock mismatch。最新 exp053 定向测试为 `5 passed`，exp051+exp053 组合回归为 `10 passed`，scoped Ruff 通过。不得把该记录写成当前全仓全绿基线。
+- `exp055`：selected exp040 scalar working model 内、authoritative raw `P_B_true`、tied `D_surface` 与 `z_waist` 两个 geometry nuisance 的首次最小 formal 已完成并为 `Failed / multistart_search_path_inconsistent`。registered grid上的 profile/equivalence set 单一且窄，但四条冻结局部搜索路径均未到达该 component；artifacts 已验证，raw `P_B_rec` 第二阶段未获授权。Phase 6--7 仍未开始。
+- 最近记录的全量测试为 `397 passed, 12 failed`；12 项均为既有 exp040 R10--R14B frozen-config SHA256 lock mismatch。最新 exp044 scoped为 `15 passed`，exp042+exp043+exp044回归为 `40 passed`，本次exp044修改范围Ruff通过。项目级Ruff诊断仍有11个既有问题。不得把该记录写成当前全仓全绿基线。
 
 必须保持以下表述边界：
 
