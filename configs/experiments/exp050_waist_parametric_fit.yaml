@@ -1,4 +1,108 @@
 run:
-  name: exp050_waist_parametric_fit
-status: scaffold
-todo: Fit waist diameter from recovered or simulated probe signatures.
+  output_root: runs
+experiment:
+  id: exp050
+  phase: Phase 5 projected diagnostic
+  role: 2d_projected_true_probe_single_parameter_waist_fit
+source:
+  experiment: exp030
+  run: runs/exp030_TGV_2d_effective_phase_20260810_121124
+  hdf5_relative_path: outputs/exp030_effective_phase.h5
+  target_dataset: /entry/truth/P_B_true
+  git_commit: e48932e0f5b77a9fc144e8b8ea2eb710952b21cb
+  shape_ny_nx: [384, 384]
+  axis_order: y_x
+  sha256:
+    config: B96667249BF343A94FC6C8347E8DC87EADF2170B439E7AB81E9845B30E00DC0B
+    metadata: 3344838EE6A4054E7CD55C6CF918BE44AA0A92AF6567C54A0828DB57869D35E8
+    metrics: ED74512B30DA9027B2B192A85C3D5C040A4BD88DED49439BC658AA8667E18818
+    run_state: 1CDC94725B7410EE29C5E66BEC87160CAEB641DB609B3F6DA4F78AB169088A09
+    hdf5: 350B85BAE727366893EC57331ACF05E78717591F15313B311899FD5949B7DEB6
+  target_bytes_sha256: A020FD6FACABC28A3CFE3D05B3A24C7A9284665BB7998D85C69BB305909BDA40
+  operator_array_sha256:
+    source_radius_m: 8DD1784D9339DAEC2C93B64E99C3313616A4D065C07D613615CE63463D4EB6FB
+    source_weights_m: A7A138C094305EC89BB83D1239AC3840202146A61931091C8A0A17CC970C5188
+    source_transmission_true: DB236D4BB1262127460A05E7262D56998D3D272032C036C3F53D57A860F89598
+    output_radius_m: 03CAFFA47FA56DAD5907340B83EDA2F7F5C3F9C9D894FC9E5F84A3F793E1ED9D
+    target_radial_probe: CDE1CBE5389BA6B19A380DE00A9B59E8BB291AA59807634466BCB678B83FC824
+instrument:
+  wavelength_m: 5.32e-7
+  dx_m: 2.5e-7
+  z_AB_m: 1.0e-3
+  z_BC_m: 1.0e-3
+  detector_pixel_size_m: 2.5e-7
+  medium_index: 1.0
+sample_a:
+  model: exp030_continuous_axisymmetric_projected_phase
+  thickness_m: 7.0e-4
+  d_top_m: 5.0e-5
+  d_waist_true_m: 3.33e-5
+  d_bottom_m: 5.0e-5
+  z_waist_m: 3.5e-4
+  n_glass: 1.5
+  n_air: 1.0
+  center_xy_m: [0.0, 0.0]
+primary_loss:
+  name: raw_complex_normalized_squared_l2
+  mask: full_field_equal_weight
+  alignment: none
+  complex_gain: fixed
+  phase_reference: exp030_absolute_raw_B_plane_reference
+preflight:
+  bounds_m: [3.23e-5, 3.43e-5]
+  global_step_m: 1.0e-7
+  fine_half_width_m: 1.0e-7
+  fine_step_m: 2.0e-8
+  finite_difference_steps_m: [1.25e-7, 1.5625e-8]
+  golden_iterations: 6
+  thresholds:
+    replay_raw_relative_l2_max: 1.0e-12
+    replay_amplitude_relative_l2_max: 1.0e-12
+    replay_phase_sensitive_relative_l2_max: 1.0e-12
+    radial_replay_relative_l2_max: 1.0e-12
+    deterministic_repeat_relative_l2_max: 1.0e-14
+    profile_uniqueness_loss_floor: 1.0e-20
+    profile_absolute_error_m_max: 2.0e-8
+    profile_minimum_loss_max: 1.0e-20
+    profile_second_best_to_floor_ratio_min: 1.0e5
+    normalized_jacobian_per_m_min: 1.0e4
+    jacobian_step_relative_l2_max: 0.10
+    signature_to_floor_ratio_min: 1.0e6
+    golden_final_bracket_width_m_max: 2.0e-8
+    golden_absolute_error_m_max: 2.0e-8
+    method_agreement_m_max: 2.0e-8
+    boundary_margin_m: 5.0e-8
+formal:
+  bounds_m: [3.23e-5, 3.43e-5]
+  global_step_m: 5.0e-8
+  fine_half_width_m: 5.0e-8
+  fine_step_m: 5.0e-9
+  finite_difference_steps_m: [1.25e-7, 1.5625e-8]
+  golden_iterations: 8
+  thresholds:
+    replay_raw_relative_l2_max: 1.0e-12
+    replay_amplitude_relative_l2_max: 1.0e-12
+    replay_phase_sensitive_relative_l2_max: 1.0e-12
+    radial_replay_relative_l2_max: 1.0e-12
+    deterministic_repeat_relative_l2_max: 1.0e-14
+    profile_uniqueness_loss_floor: 1.0e-20
+    profile_absolute_error_m_max: 5.0e-9
+    profile_minimum_loss_max: 1.0e-20
+    profile_second_best_to_floor_ratio_min: 1.0e6
+    normalized_jacobian_per_m_min: 1.0e4
+    jacobian_step_relative_l2_max: 0.05
+    signature_to_floor_ratio_min: 1.0e6
+    golden_final_bracket_width_m_max: 5.0e-9
+    golden_absolute_error_m_max: 5.0e-9
+    method_agreement_m_max: 5.0e-9
+    boundary_margin_m: 5.0e-8
+output:
+  run_name: exp050_TGV_2d_projected_true_probe_waist_fit
+  hdf5_filename: exp050_projected_true_probe_waist_fit.h5
+  figures:
+    - exp050_loss_profile.png
+    - exp050_best_fit.png
+    - exp050_numerical_controls.png
+    - exp050_estimator_crosscheck.png
+  save_candidate_cache: true
+seed: 20260902
