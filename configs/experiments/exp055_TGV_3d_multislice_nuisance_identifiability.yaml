@@ -1,0 +1,187 @@
+experiment:
+  id: exp055
+  role: 3d_scalar_multislice_true_probe_minimal_geometry_nuisance_identifiability
+  stage: true_probe
+  target_identity: authoritative matched raw P_B_true
+  truth_identity: simulation truth under the selected exp040 scalar working model
+  reference_validated: false
+  full_tgv_reference_authorized: false
+
+source:
+  run: runs/exp042_TGV_3d_multislice_probe_reconstruction_dev_20260831_183139
+  config_filename: config.yaml
+  metadata_filename: metadata.json
+  metrics_filename: metrics.json
+  run_state_filename: run_state.json
+  hdf5_relative_path: outputs/exp042_probe_reconstruction.h5
+  target_hdf5_path: /entry/truth/P_B_true
+  forbidden_primary_input_tokens: [reconstruction, P_B_rec, aligned, global_phase]
+  expected_sha256:
+    config: 59860425AFAB3D07D6DA5D44A41085B3FA24E9EAFF6EE317ABE06B6BF0BA7276
+    metadata: 5B056A65302924A5C03E8EC5AAEB06B7C388F8888ED2BCCF86D24659C9CE7B2B
+    metrics: 195B001CC4EB90EE9B9B37ACACDEB599EF23D6379EEC0CA10025CB211D70615A
+    run_state: 75E70687CEA890E8CFFB9473F54080583685942CF45B70D5F89678621031905C
+    hdf5: C48588FC47EED474CF047219A1DB26BCC9242961A58176CA9CCB879495FFA37D
+    target_dataset_bytes: FA61264AF0D96BF3393EC461E2147992FDE6926D0132B2346090790E40E8EBFD
+  expected_identity:
+    source_experiment: exp042
+    source_exp040_branch: R8 unified q8 finite-B open q4 scalar working model
+    development_case_id: canonical_geometry_coarse_matched_dev
+    source_git_commit: ac5c20843ff910c1d1619fe590b4b5e18bc38912
+    plane: B
+    axis_order: [y, x]
+    native_shape: [96, 96]
+    dtype: complex128
+    node_dx_m: 5.0e-7
+    native_fov_m: [4.8e-5, 4.8e-5]
+    coordinate_endpoints_m: [-2.375e-5, 2.375e-5]
+    origin: geometric_origin_midway_between_four_central_samples
+    residual_embedding: centered_zero_pad_of_P_B_minus_homogeneous_reference
+    fft_normalization: numpy_fft_forward_unscaled_inverse_1_over_ny_nx
+    angular_spectrum_bandlimit: true
+    external_alias_control: true
+
+oracle_context:
+  exp051_run: runs/exp051_TGV_3d_multislice_true_probe_waist_fit_q8_plateau_interval_20260824_161440
+  exp051_hdf5_relative_path: outputs/exp051_q8_plateau_interval_fit.h5
+  exp051_hdf5_sha256: FD1F5E47300BB8A09329F8E21E1A9A3AFCD84BFEFA3FD9A7AD89705983270B3C
+  exp051_status: Passed
+  exp051_interval_m: [1.9999972701052885e-5, 2.0000143340468626e-5]
+  exp051_interval_endpoint_closed: [true, false]
+  exp053_run: runs/exp053_TGV_3d_multislice_reconstructed_probe_q8_cell_interval_20260901_122210
+  exp053_hdf5_relative_path: outputs/exp053_reconstructed_probe_q8_cell_interval_fit.h5
+  exp053_hdf5_sha256: CF1697FC1B36CFCD9647FFC07A4BC68FD02C97ED1C329AE4313C9719467D0C1F
+  exp053_status: Passed
+  used_in_primary_fit_or_status: false
+
+fixed_model:
+  sample_a_model: axisymmetric_tgv_q8_cell_average_scalar_multislice
+  shape: [96, 96]
+  dx_m: 5.0e-7
+  thickness_m: 1.0e-4
+  target_dz_m: 1.0e-6
+  slice_count: 100
+  interface_factor: 8
+  n_glass: 1.5
+  n_air: 1.0
+  wavelength_m: 5.32e-7
+  internal_reference_index: 1.5
+  external_medium_index: 1.0
+  z_AB_m: 5.0e-4
+  illumination_amplitude: 1.0
+  illumination_theta_xy_rad: [0.0, 0.0]
+  center_xy_m: [0.0, 0.0]
+  internal_bandlimit: true
+  internal_alias_control: false
+  external_bandlimit: true
+  external_alias_control: true
+  axis_order: [y, x]
+  complex_dtype: complex128
+
+parameters:
+  target:
+    name: d_waist_m
+    truth_m_simulation_evaluation_only: 2.0e-5
+    bounds_m: [1.6e-5, 2.4e-5]
+    unit: m
+  nuisance:
+    - name: d_surface_m
+      applies_to: [d_top_m, d_bottom_m]
+      tied: true
+      nominal_m: 3.0e-5
+      bounds_m: [2.8e-5, 3.2e-5]
+      range_role: preregistered_working_range_not_empirical_uncertainty
+      unit: m
+    - name: z_waist_m
+      nominal_m: 5.0e-5
+      bounds_m: [4.5e-5, 5.5e-5]
+      range_role: preregistered_working_range_not_empirical_uncertainty
+      unit: m
+
+fit:
+  primary_loss: raw_complex_normalized_squared_l2
+  denominator: squared_l2_norm_of_raw_P_B_true
+  mask: full_native_field_all_true
+  weighting: equal_per_complex_pixel
+  phase_or_scale_alignment: none
+  equivalence_relative_l2:
+    primary: 1.0e-12
+    low: 1.0e-13
+    high: 1.0e-11
+  coarse_grid:
+    d_waist_m: [1.6e-5, 1.7e-5, 1.8e-5, 1.9e-5, 2.0e-5, 2.1e-5, 2.2e-5, 2.3e-5, 2.4e-5]
+    d_surface_m: [2.8e-5, 2.9e-5, 3.0e-5, 3.1e-5, 3.2e-5]
+    z_waist_m: [4.5e-5, 4.75e-5, 5.0e-5, 5.25e-5, 5.5e-5]
+  local_grid:
+    d_waist_m: [1.95e-5, 1.9625e-5, 1.975e-5, 1.9875e-5, 2.0e-5, 2.0125e-5, 2.025e-5, 2.0375e-5, 2.05e-5]
+    d_surface_m: [2.95e-5, 2.9625e-5, 2.975e-5, 2.9875e-5, 3.0e-5, 3.0125e-5, 3.025e-5, 3.0375e-5, 3.05e-5]
+    z_waist_m: [4.8e-5, 4.85e-5, 4.9e-5, 4.95e-5, 5.0e-5, 5.05e-5, 5.1e-5, 5.15e-5, 5.2e-5]
+  connectivity: six_neighbor_cartesian_lattice
+  profile_definition: minimum_raw_loss_over_registered_nuisance_grid_at_each_d_waist
+  q8_fiber:
+    max_adjacent_cells_per_direction: 256
+    boundary_bisection_iterations: 24
+    boundary_resolution_m_max: 1.0e-12
+  multistart_paths:
+    algorithm: deterministic_six_neighbor_steepest_descent_on_frozen_local_grid
+    start_indices:
+      - [0, 0, 0]
+      - [0, 8, 8]
+      - [8, 0, 8]
+      - [8, 8, 0]
+    maximum_moves_per_start: 32
+    tie_break: lexicographic_parameter_index
+    equal_grid_and_move_budget: true
+  local_diagnostic:
+    role: diagnostic_only_not_status_gate
+    method: centered_finite_change_column_svd
+    offsets_m:
+      d_waist_m: 1.25e-7
+      d_surface_m: 1.25e-7
+      z_waist_m: 5.0e-7
+    normalization: column_unit_norm_before_svd
+
+preflight:
+  scientific_result_used_for_threshold_or_method_selection: false
+  points:
+    - [2.0e-5, 3.0e-5, 5.0e-5]
+    - [1.9875e-5, 3.0e-5, 5.0e-5]
+    - [2.0125e-5, 3.0e-5, 5.0e-5]
+    - [2.0e-5, 2.9875e-5, 5.0e-5]
+    - [2.0e-5, 3.0125e-5, 5.0e-5]
+    - [2.0e-5, 3.0e-5, 4.95e-5]
+    - [2.0e-5, 3.0e-5, 5.05e-5]
+
+thresholds:
+  source_replay_relative_l2_max: 1.0e-14
+  deterministic_repeat_relative_l2_max: 1.0e-14
+  outside_to_tau_ratio_min: 1.0e6
+  maximum_equivalence_component_count: 1
+  projected_d_waist_width_m_max: 1.25e-7
+  fitting_bound_margin_m: 1.25e-7
+  require_all_multistarts_common_component: true
+  require_equivalence_set_not_touch_local_grid_boundary: true
+  require_tau_low_primary_high_component_agreement: true
+
+status_logic:
+  order:
+    - artifact_operator_handoff_not_closed: Inconclusive
+    - nuisance_numerical_control_not_closed: Inconclusive
+    - nuisance_equivalence_nonunique: Failed
+    - multistart_search_path_inconsistent: Failed
+    - waist_profile_not_stably_identifiable: Failed
+    - minimal_geometry_nuisance_identifiability_passed: Passed
+
+output:
+  root: runs
+  run_name: exp055_TGV_3d_multislice_true_probe_nuisance_identifiability
+  hdf5_filename: exp055_nuisance_identifiability.h5
+  figure_filenames:
+    - exp055_global_profile_landscape.png
+    - exp055_d_waist_profile_equivalence.png
+    - exp055_surface_z_pair_profile.png
+    - exp055_multistart_components.png
+    - exp055_local_singular_diagnostic.png
+  expected_runtime_seconds_max: 600.0
+  expected_peak_memory_bytes_max: 1073741824
+  expected_hdf5_bytes_max: 201326592
